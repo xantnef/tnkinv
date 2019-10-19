@@ -305,7 +305,7 @@ MarketApiService Получение исторических стакана по
 
 
 */
-func (a *MarketApiService) MarketOrderbookGet(ctx context.Context, figi interface{}, depth interface{}) (*http.Response, error) {
+func (a *MarketApiService) MarketOrderbookGet(ctx context.Context, figi interface{}, depth interface{}) ([]byte, error) {
 	var (
 		localVarHttpMethod = strings.ToUpper("Get")
 		localVarPostBody   interface{}
@@ -346,13 +346,13 @@ func (a *MarketApiService) MarketOrderbookGet(ctx context.Context, figi interfac
 
 	localVarHttpResponse, err := a.client.callAPI(r)
 	if err != nil || localVarHttpResponse == nil {
-		return localVarHttpResponse, err
+		return nil, err
 	}
 
 	localVarBody, err := ioutil.ReadAll(localVarHttpResponse.Body)
 	localVarHttpResponse.Body.Close()
 	if err != nil {
-		return localVarHttpResponse, err
+		return nil, err
 	}
 
 	if localVarHttpResponse.StatusCode >= 300 {
@@ -361,10 +361,10 @@ func (a *MarketApiService) MarketOrderbookGet(ctx context.Context, figi interfac
 			error: localVarHttpResponse.Status,
 		}
 
-		return localVarHttpResponse, newErr
+		return nil, newErr
 	}
 
-	return localVarHttpResponse, nil
+	return localVarBody, nil
 }
 
 /*

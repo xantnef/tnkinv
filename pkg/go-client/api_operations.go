@@ -36,8 +36,14 @@ OperationsApiService Получение списка операций
 
 */
 
+type optionalInterface interface {
+	IsSet() bool
+	Value() error
+}
+
 type OperationsGetOpts struct { 
-	Figi optional.Interface
+	//Figi optional.Interface
+	Figi optionalInterface
 }
 
 func (a *OperationsApiService) OperationsGet(ctx context.Context, from interface{}, to interface{}, localVarOptionals *OperationsGetOpts) (*http.Response, error) {

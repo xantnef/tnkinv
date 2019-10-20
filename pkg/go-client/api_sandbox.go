@@ -25,7 +25,7 @@ var (
 
 type SandboxApiService service
 
-/* 
+/*
 SandboxApiService Удаление всех позиций
 Удаление всех позиций клиента
  * @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
@@ -38,7 +38,6 @@ func (a *SandboxApiService) SandboxClearPost(ctx context.Context) (*http.Respons
 		localVarPostBody   interface{}
 		localVarFileName   string
 		localVarFileBytes  []byte
-		
 	)
 
 	// create path and map variables
@@ -81,20 +80,19 @@ func (a *SandboxApiService) SandboxClearPost(ctx context.Context) (*http.Respons
 		return localVarHttpResponse, err
 	}
 
-
 	if localVarHttpResponse.StatusCode >= 300 {
 		newErr := GenericSwaggerError{
-			body: localVarBody,
+			body:  localVarBody,
 			error: localVarHttpResponse.Status,
 		}
-		
+
 		return localVarHttpResponse, newErr
 	}
 
 	return localVarHttpResponse, nil
 }
 
-/* 
+/*
 SandboxApiService Выставление баланса по валютным позициям
  * @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
 
@@ -106,7 +104,6 @@ func (a *SandboxApiService) SandboxCurrenciesBalancePost(ctx context.Context) (*
 		localVarPostBody   interface{}
 		localVarFileName   string
 		localVarFileBytes  []byte
-		
 	)
 
 	// create path and map variables
@@ -149,20 +146,19 @@ func (a *SandboxApiService) SandboxCurrenciesBalancePost(ctx context.Context) (*
 		return localVarHttpResponse, err
 	}
 
-
 	if localVarHttpResponse.StatusCode >= 300 {
 		newErr := GenericSwaggerError{
-			body: localVarBody,
+			body:  localVarBody,
 			error: localVarHttpResponse.Status,
 		}
-		
+
 		return localVarHttpResponse, newErr
 	}
 
 	return localVarHttpResponse, nil
 }
 
-/* 
+/*
 SandboxApiService Выставление баланса по инструментным позициям
  * @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
 
@@ -174,7 +170,6 @@ func (a *SandboxApiService) SandboxPositionsBalancePost(ctx context.Context) (*h
 		localVarPostBody   interface{}
 		localVarFileName   string
 		localVarFileBytes  []byte
-		
 	)
 
 	// create path and map variables
@@ -217,20 +212,19 @@ func (a *SandboxApiService) SandboxPositionsBalancePost(ctx context.Context) (*h
 		return localVarHttpResponse, err
 	}
 
-
 	if localVarHttpResponse.StatusCode >= 300 {
 		newErr := GenericSwaggerError{
-			body: localVarBody,
+			body:  localVarBody,
 			error: localVarHttpResponse.Status,
 		}
-		
+
 		return localVarHttpResponse, newErr
 	}
 
 	return localVarHttpResponse, nil
 }
 
-/* 
+/*
 SandboxApiService Регистрация клиента в sandbox
 Создание валютные позиций для клиента
  * @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
@@ -243,7 +237,6 @@ func (a *SandboxApiService) SandboxRegisterPost(ctx context.Context) (*http.Resp
 		localVarPostBody   interface{}
 		localVarFileName   string
 		localVarFileBytes  []byte
-		
 	)
 
 	// create path and map variables
@@ -286,13 +279,12 @@ func (a *SandboxApiService) SandboxRegisterPost(ctx context.Context) (*http.Resp
 		return localVarHttpResponse, err
 	}
 
-
 	if localVarHttpResponse.StatusCode >= 300 {
 		newErr := GenericSwaggerError{
-			body: localVarBody,
+			body:  localVarBody,
 			error: localVarHttpResponse.Status,
 		}
-		
+
 		return localVarHttpResponse, newErr
 	}
 

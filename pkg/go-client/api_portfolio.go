@@ -25,7 +25,7 @@ var (
 
 type PortfolioApiService service
 
-/* 
+/*
 PortfolioApiService Получение валютных активов клиента
  * @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
 
@@ -37,7 +37,6 @@ func (a *PortfolioApiService) PortfolioCurrenciesGet(ctx context.Context) (*http
 		localVarPostBody   interface{}
 		localVarFileName   string
 		localVarFileBytes  []byte
-		
 	)
 
 	// create path and map variables
@@ -80,20 +79,19 @@ func (a *PortfolioApiService) PortfolioCurrenciesGet(ctx context.Context) (*http
 		return localVarHttpResponse, err
 	}
 
-
 	if localVarHttpResponse.StatusCode >= 300 {
 		newErr := GenericSwaggerError{
-			body: localVarBody,
+			body:  localVarBody,
 			error: localVarHttpResponse.Status,
 		}
-		
+
 		return localVarHttpResponse, newErr
 	}
 
 	return localVarHttpResponse, nil
 }
 
-/* 
+/*
 PortfolioApiService Получение портфеля клиента
  * @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
 
@@ -105,7 +103,6 @@ func (a *PortfolioApiService) PortfolioGet(ctx context.Context) (*http.Response,
 		localVarPostBody   interface{}
 		localVarFileName   string
 		localVarFileBytes  []byte
-		
 	)
 
 	// create path and map variables
@@ -148,13 +145,12 @@ func (a *PortfolioApiService) PortfolioGet(ctx context.Context) (*http.Response,
 		return localVarHttpResponse, err
 	}
 
-
 	if localVarHttpResponse.StatusCode >= 300 {
 		newErr := GenericSwaggerError{
-			body: localVarBody,
+			body:  localVarBody,
 			error: localVarHttpResponse.Status,
 		}
-		
+
 		return localVarHttpResponse, newErr
 	}
 

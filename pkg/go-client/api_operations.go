@@ -25,7 +25,7 @@ var (
 
 type OperationsApiService service
 
-/* 
+/*
 OperationsApiService Получение списка операций
  * @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
  * @param from Начало временного промежутка
@@ -41,7 +41,7 @@ type optionalInterface interface {
 	Value() error
 }
 
-type OperationsGetOpts struct { 
+type OperationsGetOpts struct {
 	//Figi optional.Interface
 	Figi optionalInterface
 }
@@ -52,7 +52,6 @@ func (a *OperationsApiService) OperationsGet(ctx context.Context, from interface
 		localVarPostBody   interface{}
 		localVarFileName   string
 		localVarFileBytes  []byte
-		
 	)
 
 	// create path and map variables
@@ -100,13 +99,12 @@ func (a *OperationsApiService) OperationsGet(ctx context.Context, from interface
 		return localVarHttpResponse, err
 	}
 
-
 	if localVarHttpResponse.StatusCode >= 300 {
 		newErr := GenericSwaggerError{
-			body: localVarBody,
+			body:  localVarBody,
 			error: localVarHttpResponse.Status,
 		}
-		
+
 		return localVarHttpResponse, newErr
 	}
 

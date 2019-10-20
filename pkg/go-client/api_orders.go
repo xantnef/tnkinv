@@ -25,7 +25,7 @@ var (
 
 type OrdersApiService service
 
-/* 
+/*
 OrdersApiService Отмена заявки
  * @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
  * @param orderId ID заявки
@@ -38,7 +38,6 @@ func (a *OrdersApiService) OrdersCancelPost(ctx context.Context, orderId interfa
 		localVarPostBody   interface{}
 		localVarFileName   string
 		localVarFileBytes  []byte
-		
 	)
 
 	// create path and map variables
@@ -82,20 +81,19 @@ func (a *OrdersApiService) OrdersCancelPost(ctx context.Context, orderId interfa
 		return localVarHttpResponse, err
 	}
 
-
 	if localVarHttpResponse.StatusCode >= 300 {
 		newErr := GenericSwaggerError{
-			body: localVarBody,
+			body:  localVarBody,
 			error: localVarHttpResponse.Status,
 		}
-		
+
 		return localVarHttpResponse, newErr
 	}
 
 	return localVarHttpResponse, nil
 }
 
-/* 
+/*
 OrdersApiService Получение списка активных заявок
  * @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
 
@@ -107,7 +105,6 @@ func (a *OrdersApiService) OrdersGet(ctx context.Context) (*http.Response, error
 		localVarPostBody   interface{}
 		localVarFileName   string
 		localVarFileBytes  []byte
-		
 	)
 
 	// create path and map variables
@@ -150,20 +147,19 @@ func (a *OrdersApiService) OrdersGet(ctx context.Context) (*http.Response, error
 		return localVarHttpResponse, err
 	}
 
-
 	if localVarHttpResponse.StatusCode >= 300 {
 		newErr := GenericSwaggerError{
-			body: localVarBody,
+			body:  localVarBody,
 			error: localVarHttpResponse.Status,
 		}
-		
+
 		return localVarHttpResponse, newErr
 	}
 
 	return localVarHttpResponse, nil
 }
 
-/* 
+/*
 OrdersApiService Создание лимитной заявки
  * @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
  * @param figi FIGI инструмента
@@ -176,7 +172,6 @@ func (a *OrdersApiService) OrdersLimitOrderPost(ctx context.Context, figi interf
 		localVarPostBody   interface{}
 		localVarFileName   string
 		localVarFileBytes  []byte
-		
 	)
 
 	// create path and map variables
@@ -220,13 +215,12 @@ func (a *OrdersApiService) OrdersLimitOrderPost(ctx context.Context, figi interf
 		return localVarHttpResponse, err
 	}
 
-
 	if localVarHttpResponse.StatusCode >= 300 {
 		newErr := GenericSwaggerError{
-			body: localVarBody,
+			body:  localVarBody,
 			error: localVarHttpResponse.Status,
 		}
-		
+
 		return localVarHttpResponse, newErr
 	}
 

@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"log"
+	"math"
+	"sort"
 	"time"
 
 	swagger "../go-client"
@@ -201,32 +203,114 @@ func (c *myClient) processPortfolio() error {
 
 		pinfo := c.positions[op.Figi]
 		if pinfo == nil {
-			log.Printf("Unhandled sold asset %s", op.Figi)
-			// TODO
-			continue
+			pinfo = &schema.PositionInfo{
+				Figi:     op.Figi,
+				Ticker:   op.Figi,
+				IsClosed: true,
+			}
+			c.positions[op.Figi] = pinfo
 		}
 
-		if op.OperationType == "Buy" || op.OperationType == "BuyCard" {
-			//log.Printf("%f:%f", pinfo.CurrentPrice.Value, op.Price)
-			deal := schema.Deal{
-				Opened:   date,
-				Price:    schema.NewCValue(op.Price, op.Currency),
-				Quantity: op.Quantity,
-				Yield:    schema.NewCValue(pinfo.CurrentPrice.Value/op.Price*100-100, op.Currency),
+		if op.OperationType == "Buy" || op.OperationType == "BuyCard" || op.OperationType == "Sell" {
+			deal := &schema.Deal{
+				Opened:      date,
+				Closed:      timeNow, // by default
+				Price:       schema.NewCValue(op.Price, op.Currency),
+				ClosedPrice: pinfo.CurrentPrice, // by default
+				Quantity:    int(op.Quantity),
 			}
-			deal.YieldAnnual = deal.Yield.Value * 365 / (timeNow.Sub(date).Hours() / 24)
+			if op.OperationType == "Sell" {
+				deal.Quantity = -deal.Quantity
+			}
+
 			pinfo.Deals = append(pinfo.Deals, deal)
 
-		} else if op.OperationType == "Sell" {
-			log.Printf("Unhandled sell operation for %s", pinfo.Ticker)
 		} else if op.OperationType == "BrokerComission" {
 			pinfo.AccumulatedIncome.Value += op.Payment
 		} else if op.OperationType == "Dividend" || op.OperationType == "TaxDividend" {
 			pinfo.AccumulatedIncome.Value += op.Payment
+		} else {
+			log.Printf("Unprocessed transaction %v", op)
+		}
+	}
+
+	for _, pinfo := range c.positions {
+		pinfo.Deals = append(pinfo.Deals, c.makeSumdeals(pinfo)...)
+
+		// can now calculate yields
+		for _, deal := range append(pinfo.Deals) {
+			if deal.Quantity > 0 {
+				// TODO dividends etc
+				deal.Yield = schema.NewCValue(deal.ClosedPrice.Value/deal.Price.Value*100-100, deal.Price.Currency)
+				deal.YieldAnnual = deal.Yield.Value * 365 / (deal.Closed.Sub(deal.Opened).Hours() / 24)
+			}
 		}
 	}
 
 	return nil
+}
+
+func (c *myClient) makeSumdeals(pinfo *schema.PositionInfo) (res []*schema.Deal) {
+	var sumdeal *schema.Deal
+
+	if len(pinfo.Deals) < 2 {
+		return
+	}
+
+	sort.Slice(pinfo.Deals, func(i, j int) bool {
+		return pinfo.Deals[i].Opened.Before(pinfo.Deals[j].Opened)
+	})
+
+	for idx, deal := range pinfo.Deals {
+
+		if deal.Quantity < 0 { // sell
+
+			sumdeal.Quantity += deal.Quantity
+
+			if sumdeal.Quantity > 0 {
+				log.Printf("Partial sells are not handled nicely yet")
+				break
+			}
+			if sumdeal.Quantity < 0 {
+				log.Fatal("wat")
+			}
+
+			// complete sell
+
+			// set final price for the previous buys
+			for i := 0; i < idx; i++ {
+				pinfo.Deals[i].Closed = deal.Opened
+				pinfo.Deals[i].ClosedPrice = deal.Price
+			}
+
+			// ..and sumdeal
+			sumdeal.Closed = deal.Opened
+			sumdeal.ClosedPrice = deal.Price
+
+			// begin to fill new sumdeal
+			sumdeal = nil
+
+		} else { // buy
+			if sumdeal == nil {
+				// first deal
+				copy := *deal
+				sumdeal = &copy
+				sumdeal.IsSumdeal = true
+				res = append(res, sumdeal)
+
+			} else {
+				mult := float64(deal.Quantity) / float64(deal.Quantity+sumdeal.Quantity)
+
+				biasDays := int(math.Round(deal.Opened.Sub(sumdeal.Opened).Hours() * mult / 24))
+				sumdeal.Opened.AddDate(0, 0, biasDays)
+
+				sumdeal.Price.Value = deal.Price.Value * mult + sumdeal.Price.Value * (1-mult)
+
+				sumdeal.Quantity += deal.Quantity
+			}
+		}
+	}
+	return
 }
 
 func (c *myClient) Run() error {

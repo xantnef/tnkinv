@@ -31,8 +31,18 @@ func (c *myClient) printPortfolio() {
 	}
 
 	fmt.Println("== Current positions ==")
-
 	for _, pinfo := range c.positions {
+		if pinfo.IsClosed {
+			continue
+		}
+		fmt.Print("  " + pinfo.String())
+	}
+
+	fmt.Println("== Closed positions ==")
+	for _, pinfo := range c.positions {
+		if !pinfo.IsClosed {
+			continue
+		}
 		fmt.Print("  " + pinfo.String())
 	}
 }

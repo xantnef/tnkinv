@@ -39,27 +39,44 @@ func (cv *CValue) Div(m float64) CValue {
 }
 
 type Deal struct {
-	Opened      time.Time
+	Opened time.Time
+	Closed time.Time
+
+	IsSumdeal bool
+
 	Price       CValue
-	Quantity    uint
+	ClosedPrice CValue
+	Quantity    int
+
 	Yield       CValue
 	YieldAnnual float64
 }
 
 func (deal *Deal) String() string {
+	if deal.Quantity < 0 {
+		return ""
+	}
+
+	fmap := map[bool]string{
+		true:  "[SUM]",
+		false: "     ",
+	}
+
 	return fmt.Sprintf(
-		"%s: spent=%v yield=%.1f%% annual=%.1f%%",
+		"%s: %s spent=%v yield=%.1f%% annual=%.1f%%",
 		deal.Opened.Format("2006/01/02"),
+		fmap[deal.IsSumdeal],
 		deal.Price.Mult(float64(deal.Quantity)),
 		deal.Yield.Value,
 		deal.YieldAnnual)
 }
 
 type PositionInfo struct {
-	Figi   string
-	Ticker string
+	Figi     string
+	Ticker   string
+	IsClosed bool
 
-	Deals []Deal
+	Deals   []*Deal
 
 	CurrentPrice      CValue
 	Quantity          float64 // TODO filter currencies with float quantities out?

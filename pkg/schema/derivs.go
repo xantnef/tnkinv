@@ -50,7 +50,7 @@ type Deal struct {
 
 func (deal Deal) String() string {
 	return fmt.Sprintf(
-		"%s: (%.2f x %d)=%s",
+		"%s: (%.2f x %d) = %s",
 		deal.Date.Format("2006/01/02"),
 		deal.Price.Value,
 		deal.Quantity,
@@ -61,6 +61,8 @@ type Portion struct {
 	Buys  []*Deal
 	Close *Deal
 
+	IsClosed bool
+
 	AvgDate  time.Time
 	AvgPrice CValue
 
@@ -70,12 +72,14 @@ type Portion struct {
 }
 
 func (po Portion) String() string {
+	date := "----/--/--"
+	if po.IsClosed {
+		date = po.Close.Date.Format("2006/01/02")
+	}
+
 	return fmt.Sprintf(
 		"%s: %s (%.1f%%, annual %.1f%%)",
-		po.Close.Date.Format("2006/01/02"),
-		po.Balance,
-		po.Yield.Value,
-		po.YieldAnnual)
+		date, po.Balance, po.Yield.Value, po.YieldAnnual)
 }
 
 type PositionInfo struct {
@@ -92,17 +96,25 @@ type PositionInfo struct {
 }
 
 func (pinfo *PositionInfo) String() string {
-	s := fmt.Sprintf(
-		"%s: %s (%.2f x %.0f) +acc %v\n",
-		pinfo.Ticker, pinfo.CurrentPrice.Mult(pinfo.Quantity),
-		pinfo.CurrentPrice.Value, pinfo.Quantity, pinfo.AccumulatedIncome)
+	s := fmt.Sprintf("%s:", pinfo.Ticker)
 
-	for _, deal := range pinfo.Deals {
-		s += "    " + deal.String() + "\n"
+	if !pinfo.IsClosed {
+		s += fmt.Sprintf(" %s (%.2f x %.0f) +acc %v",
+			pinfo.CurrentPrice.Mult(pinfo.Quantity),
+			pinfo.CurrentPrice.Value, pinfo.Quantity, pinfo.AccumulatedIncome)
 	}
 
+	s += "\n" +
+		"    deals:\n"
+
+	for _, deal := range pinfo.Deals {
+		s += "      " + deal.String() + "\n"
+	}
+
+	s += "    position stats:\n"
+
 	for _, po := range pinfo.Portions {
-		s += "    " + po.String() + "\n"
+		s += "      " + po.String() + "\n"
 	}
 
 	return s

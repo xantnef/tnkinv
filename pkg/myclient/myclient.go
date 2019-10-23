@@ -284,7 +284,7 @@ func (c *myClient) makePortions(pinfo *schema.PositionInfo) {
 
 			// complete sell
 			po.Close = deal
-
+			po.IsClosed = true
 			// begin to fill new portion
 			po = nil
 		}

@@ -2,9 +2,27 @@ package myclient
 
 import (
 	"fmt"
+	"sort"
 
 	"../schema"
 )
+
+func (c *myClient) currExchangeDiff(currency string) (diff float64) {
+	uspos := c.positions["BBG0013HGFT4"]
+	if uspos == nil {
+		return
+	}
+
+	for _, deal := range uspos.Deals {
+		if currency == "RUB" {
+			diff += deal.Price.Value * float64(deal.Quantity)
+		}
+		if currency == "USD" {
+			diff -= float64(deal.Quantity)
+		}
+	}
+	return
+}
 
 func (c *myClient) printPortfolio() {
 	fmt.Println("== Totals ==")
@@ -27,22 +45,35 @@ func (c *myClient) printPortfolio() {
 		bal := schema.NewCValue(
 			c.totals.assets[currency].Value-cv.Value,
 			currency)
+		bal.Value += c.currExchangeDiff(currency)
+
 		fmt.Printf("    %v\n", bal)
 	}
 
 	fmt.Println("== Current positions ==")
-	for _, pinfo := range c.positions {
+	c.forSortedPositions(func(pinfo *schema.PositionInfo) {
 		if pinfo.IsClosed {
-			continue
+			return
 		}
-		fmt.Print("  " + pinfo.String())
-	}
+		fmt.Print("  " + pinfo.String() + "\n")
+	})
 
 	fmt.Println("== Closed positions ==")
-	for _, pinfo := range c.positions {
+	c.forSortedPositions(func(pinfo *schema.PositionInfo) {
 		if !pinfo.IsClosed {
-			continue
+			return
 		}
-		fmt.Print("  " + pinfo.String())
+		fmt.Print("  " + pinfo.String() + "\n")
+	})
+}
+
+func (c *myClient) forSortedPositions(cb func(pinfo *schema.PositionInfo)) {
+	var figis []string
+	for figi := range c.positions {
+		figis = append(figis, figi)
+	}
+	sort.Strings(figis)
+	for _, figi := range figis {
+		cb(c.positions[figi])
 	}
 }

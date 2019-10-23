@@ -213,11 +213,9 @@ func (c *myClient) processPortfolio() error {
 
 		if op.OperationType == "Buy" || op.OperationType == "BuyCard" || op.OperationType == "Sell" {
 			deal := &schema.Deal{
-				Opened:      date,
-				Closed:      timeNow, // by default
-				Price:       schema.NewCValue(op.Price, op.Currency),
-				ClosedPrice: pinfo.CurrentPrice, // by default
-				Quantity:    int(op.Quantity),
+				Date:     date,
+				Price:    schema.NewCValue(op.Price, op.Currency),
+				Quantity: int(op.Quantity),
 			}
 			if op.OperationType == "Sell" {
 				deal.Quantity = -deal.Quantity
@@ -235,82 +233,92 @@ func (c *myClient) processPortfolio() error {
 	}
 
 	for _, pinfo := range c.positions {
-		pinfo.Deals = append(pinfo.Deals, c.makeSumdeals(pinfo)...)
-
-		// can now calculate yields
-		for _, deal := range append(pinfo.Deals) {
-			if deal.Quantity > 0 {
-				// TODO dividends etc
-				deal.Yield = schema.NewCValue(deal.ClosedPrice.Value/deal.Price.Value*100-100, deal.Price.Currency)
-				deal.YieldAnnual = deal.Yield.Value * 365 / (deal.Closed.Sub(deal.Opened).Hours() / 24)
-			}
-		}
+		c.makePortions(pinfo)
 	}
 
 	return nil
 }
 
-func (c *myClient) makeSumdeals(pinfo *schema.PositionInfo) (res []*schema.Deal) {
-	var sumdeal *schema.Deal
+func (c *myClient) makePortions(pinfo *schema.PositionInfo) {
+	var po *schema.Portion
+	var balance int
 
-	if len(pinfo.Deals) < 2 {
-		return
-	}
+	now := time.Now()
 
 	sort.Slice(pinfo.Deals, func(i, j int) bool {
-		return pinfo.Deals[i].Opened.Before(pinfo.Deals[j].Opened)
+		return pinfo.Deals[i].Date.Before(pinfo.Deals[j].Date)
 	})
 
-	for idx, deal := range pinfo.Deals {
+	for _, deal := range pinfo.Deals {
 
-		if deal.Quantity < 0 { // sell
+		balance += deal.Quantity
 
-			sumdeal.Quantity += deal.Quantity
+		if deal.Quantity > 0 { // buy
+			if po == nil {
+				// first deal
+				po = &schema.Portion{
+					Balance: schema.NewCValue(0, deal.Price.Currency),
+					AvgDate: deal.Date,
+				}
+				pinfo.Portions = append(pinfo.Portions, po)
+			} else {
+				// TODO this is wrong
+				mult := float64(deal.Quantity) / float64(deal.Quantity+balance)
 
-			if sumdeal.Quantity > 0 {
+				biasDays := int(math.Round(deal.Date.Sub(po.AvgDate).Hours() * mult / 24))
+				po.AvgDate.AddDate(0, 0, biasDays)
+
+				po.AvgPrice.Value = deal.Price.Value*mult + po.AvgPrice.Value*(1-mult)
+			}
+
+			po.Buys = append(po.Buys, deal)
+
+		} else { // sell
+			if balance > 0 {
 				log.Printf("Partial sells are not handled nicely yet")
 				break
 			}
-			if sumdeal.Quantity < 0 {
+			if balance < 0 {
 				log.Fatal("wat")
 			}
 
 			// complete sell
+			po.Close = deal
 
-			// set final price for the previous buys
-			for i := 0; i < idx; i++ {
-				pinfo.Deals[i].Closed = deal.Opened
-				pinfo.Deals[i].ClosedPrice = deal.Price
-			}
-
-			// ..and sumdeal
-			sumdeal.Closed = deal.Opened
-			sumdeal.ClosedPrice = deal.Price
-
-			// begin to fill new sumdeal
-			sumdeal = nil
-
-		} else { // buy
-			if sumdeal == nil {
-				// first deal
-				copy := *deal
-				sumdeal = &copy
-				sumdeal.IsSumdeal = true
-				res = append(res, sumdeal)
-
-			} else {
-				mult := float64(deal.Quantity) / float64(deal.Quantity+sumdeal.Quantity)
-
-				biasDays := int(math.Round(deal.Opened.Sub(sumdeal.Opened).Hours() * mult / 24))
-				sumdeal.Opened.AddDate(0, 0, biasDays)
-
-				sumdeal.Price.Value = deal.Price.Value * mult + sumdeal.Price.Value * (1-mult)
-
-				sumdeal.Quantity += deal.Quantity
-			}
+			// begin to fill new portion
+			po = nil
 		}
 	}
-	return
+
+	if po != nil {
+		if pinfo.IsClosed {
+			log.Fatal("wat")
+		}
+
+		po.Close = &schema.Deal{
+			Date:     now,
+			Price:    pinfo.CurrentPrice,
+			Quantity: -balance,
+		}
+	}
+
+	// can now calculate balance and yields
+	for _, po = range pinfo.Portions {
+		// TODO dividends etc
+		var expense float64
+		for _, deal := range po.Buys {
+			expense += deal.Price.Value * float64(deal.Quantity)
+		}
+		profit := po.Close.Price.Mult(float64(-po.Close.Quantity))
+
+		po.Yield = profit.Div(expense / 100)
+		po.Yield.Value -= 100
+
+		po.YieldAnnual = po.Yield.Value * 365 / (po.Close.Date.Sub(po.AvgDate).Hours() / 24)
+
+		po.Balance = profit
+		po.Balance.Value -= expense
+	}
 }
 
 func (c *myClient) Run() error {

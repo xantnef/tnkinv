@@ -27,48 +27,55 @@ func NewCValue(val float64, currency string) CValue {
 	}
 }
 
-func (cv *CValue) Mult(m float64) CValue {
+func (cv CValue) Mult(m float64) CValue {
 	return CValue{
 		Currency: cv.Currency,
 		Value:    cv.Value * m,
 	}
 }
 
-func (cv *CValue) Div(m float64) CValue {
+func (cv CValue) Div(m float64) CValue {
 	return cv.Mult(1 / m)
 }
 
+func (cv CValue) String() string {
+	return fmt.Sprintf("{%s %.2f}", cv.Currency, cv.Value)
+}
+
 type Deal struct {
-	Opened time.Time
-	Closed time.Time
+	Date     time.Time
+	Price    CValue
+	Quantity int
+}
 
-	IsSumdeal bool
+func (deal Deal) String() string {
+	return fmt.Sprintf(
+		"%s: (%.2f x %d)=%s",
+		deal.Date.Format("2006/01/02"),
+		deal.Price.Value,
+		deal.Quantity,
+		deal.Price.Mult(float64(deal.Quantity)))
+}
 
-	Price       CValue
-	ClosedPrice CValue
-	Quantity    int
+type Portion struct {
+	Buys  []*Deal
+	Close *Deal
 
+	AvgDate  time.Time
+	AvgPrice CValue
+
+	Balance     CValue
 	Yield       CValue
 	YieldAnnual float64
 }
 
-func (deal *Deal) String() string {
-	if deal.Quantity < 0 {
-		return ""
-	}
-
-	fmap := map[bool]string{
-		true:  "[SUM]",
-		false: "     ",
-	}
-
+func (po Portion) String() string {
 	return fmt.Sprintf(
-		"%s: %s spent=%v yield=%.1f%% annual=%.1f%%",
-		deal.Opened.Format("2006/01/02"),
-		fmap[deal.IsSumdeal],
-		deal.Price.Mult(float64(deal.Quantity)),
-		deal.Yield.Value,
-		deal.YieldAnnual)
+		"%s: %s (%.1f%%, annual %.1f%%)",
+		po.Close.Date.Format("2006/01/02"),
+		po.Balance,
+		po.Yield.Value,
+		po.YieldAnnual)
 }
 
 type PositionInfo struct {
@@ -76,22 +83,26 @@ type PositionInfo struct {
 	Ticker   string
 	IsClosed bool
 
-	Deals   []*Deal
+	Deals    []*Deal
+	Portions []*Portion
 
 	CurrentPrice      CValue
-	Quantity          float64 // TODO filter currencies with float quantities out?
+	Quantity          float64 // TODO remove
 	AccumulatedIncome CValue
-	YieldAnnual       float64
 }
 
 func (pinfo *PositionInfo) String() string {
 	s := fmt.Sprintf(
-		"%s: %v (%.0f x %.1f) +acc %v\n",
+		"%s: %s (%.2f x %.0f) +acc %v\n",
 		pinfo.Ticker, pinfo.CurrentPrice.Mult(pinfo.Quantity),
-		pinfo.Quantity, pinfo.CurrentPrice.Value, pinfo.AccumulatedIncome)
+		pinfo.CurrentPrice.Value, pinfo.Quantity, pinfo.AccumulatedIncome)
 
 	for _, deal := range pinfo.Deals {
 		s += "    " + deal.String() + "\n"
+	}
+
+	for _, po := range pinfo.Portions {
+		s += "    " + po.String() + "\n"
 	}
 
 	return s

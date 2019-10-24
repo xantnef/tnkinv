@@ -6,18 +6,24 @@ import (
 	"time"
 )
 
+const (
+	FigiUSD = "BBG0013HGFT4" // ticker for USD buys
+)
+
+/* const */
+var Currencies map[string]bool = map[string]bool{
+	"USD": true,
+	"RUB": true,
+	"EUR": true,
+}
+
 type CValue struct {
 	Currency string
 	Value    float64
 }
 
 func NewCValue(val float64, currency string) CValue {
-	m := map[string]bool{
-		"USD": true,
-		"RUB": true,
-	}
-
-	if !m[currency] {
+	if !Currencies[currency] {
 		log.Fatalf("unknown currency %s", currency)
 	}
 

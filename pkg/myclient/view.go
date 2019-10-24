@@ -8,7 +8,7 @@ import (
 )
 
 func (c *myClient) currExchangeDiff(currency string) (diff float64) {
-	uspos := c.positions["BBG0013HGFT4"]
+	uspos := c.positions[schema.FigiUSD]
 	if uspos == nil {
 		return
 	}

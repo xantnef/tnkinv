@@ -55,8 +55,8 @@ func NewClient(cfg *Config) (MyClient, error) {
 }
 
 func (c *myClient) makeCurrencies() {
-	for _, cur := range []string{"RUB", "USD"} {
-		for _, m := range []map[string]*schema.CValue{c.totals.payins, c.totals.assets} {
+	for _, m := range []map[string]*schema.CValue{c.totals.payins, c.totals.assets} {
+		for cur := range schema.Currencies {
 			cv := schema.NewCValue(0, cur)
 			m[cur] = &cv
 		}

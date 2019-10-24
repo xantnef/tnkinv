@@ -180,7 +180,12 @@ func (c *myClient) processPortfolio() error {
 	for _, op := range opsResp.Payload.Operations {
 		date, err := time.Parse(time.RFC3339, op.Date)
 		if err != nil {
-			log.Printf("Failed to parse time: %v", err)
+			// crutch one crippled transaction
+			if op.Date == "2019-08-23T00:00+03:00" {
+				op.Date = "2019-08-23T00:00:00+03:00"
+			} else {
+				log.Printf("Failed to parse time: %v", err)
+			}
 		}
 
 		/* log.Printf("at %s %s some %s",
@@ -223,7 +228,7 @@ func (c *myClient) processPortfolio() error {
 
 			pinfo.Deals = append(pinfo.Deals, deal)
 
-		} else if op.OperationType == "BrokerComission" {
+		} else if op.OperationType == "BrokerCommission" {
 			pinfo.AccumulatedIncome.Value += op.Payment
 		} else if op.OperationType == "Dividend" || op.OperationType == "TaxDividend" {
 			pinfo.AccumulatedIncome.Value += op.Payment

@@ -29,6 +29,9 @@ func (c *myClient) printPortfolio() {
 
 	fmt.Println("  Payins:")
 	for _, cv := range c.totals.payins {
+		if cv.Value == 0 {
+			continue
+		}
 		fmt.Printf("    %v\n", *cv)
 	}
 
@@ -37,6 +40,9 @@ func (c *myClient) printPortfolio() {
 
 	fmt.Println("  Assets:")
 	for _, cv := range c.totals.assets {
+		if cv.Value == 0 {
+			continue
+		}
 		fmt.Printf("    %v\n", *cv)
 	}
 
@@ -46,6 +52,9 @@ func (c *myClient) printPortfolio() {
 			c.totals.assets[currency].Value-cv.Value,
 			currency)
 		bal.Value += c.currExchangeDiff(currency)
+		if bal.Value == 0 {
+			continue
+		}
 
 		fmt.Printf("    %v\n", bal)
 	}

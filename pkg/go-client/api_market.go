@@ -374,7 +374,7 @@ MarketApiService Получение инструмента по FIGI
 
 
 */
-func (a *MarketApiService) MarketSearchByFigiGet(ctx context.Context, figi interface{}) (*http.Response, error) {
+func (a *MarketApiService) MarketSearchByFigiGet(ctx context.Context, figi interface{}) ([]byte, error) {
 	var (
 		localVarHttpMethod = strings.ToUpper("Get")
 		localVarPostBody   interface{}
@@ -414,13 +414,13 @@ func (a *MarketApiService) MarketSearchByFigiGet(ctx context.Context, figi inter
 
 	localVarHttpResponse, err := a.client.callAPI(r)
 	if err != nil || localVarHttpResponse == nil {
-		return localVarHttpResponse, err
+		return nil, err
 	}
 
 	localVarBody, err := ioutil.ReadAll(localVarHttpResponse.Body)
 	localVarHttpResponse.Body.Close()
 	if err != nil {
-		return localVarHttpResponse, err
+		return nil, err
 	}
 
 	if localVarHttpResponse.StatusCode >= 300 {
@@ -429,10 +429,10 @@ func (a *MarketApiService) MarketSearchByFigiGet(ctx context.Context, figi inter
 			error: localVarHttpResponse.Status,
 		}
 
-		return localVarHttpResponse, newErr
+		return nil, newErr
 	}
 
-	return localVarHttpResponse, nil
+	return localVarBody, nil
 }
 
 /*

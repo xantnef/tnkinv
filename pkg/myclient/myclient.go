@@ -121,6 +121,23 @@ func (c *myClient) requestCurrentPrice(figi string) float64 {
 	return mktResp.Payload.LastPrice
 }
 
+func (c *myClient) requestTicker(figi string) string {
+	mktApi := c.getAPI().MarketApi
+	resp := schema.SearchByFigiResponse{}
+
+	body, err := mktApi.MarketSearchByFigiGet(nil, figi)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err = json.Unmarshal(body, &resp)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return resp.Payload.Ticker
+}
+
 func (c *myClient) processPortfolio() error {
 	//2019-08-19T18:38:33.131642+03:00
 	timeStartStr := time.Date(2018, 9, 1, 0, 0, 0, 0, time.UTC).Format(time.RFC3339)
@@ -210,7 +227,7 @@ func (c *myClient) processPortfolio() error {
 		if pinfo == nil {
 			pinfo = &schema.PositionInfo{
 				Figi:     op.Figi,
-				Ticker:   op.Figi,
+				Ticker:   c.requestTicker(op.Figi),
 				IsClosed: true,
 			}
 			c.positions[op.Figi] = pinfo

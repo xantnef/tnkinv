@@ -176,7 +176,12 @@ func (c *myClient) processPortfolio() error {
 		}
 
 		c.positions[pos.Figi] = pinfo
-		c.totals.assets[currency].Value += pinfo.CurrentPrice.Value * pinfo.Quantity
+
+		if pos.Figi == schema.FigiUSD {
+			c.totals.assets["USD"].Value += pos.Balance
+		} else {
+			c.totals.assets[currency].Value += pinfo.CurrentPrice.Value * pinfo.Quantity
+		}
 	}
 
 	body, err = opsApi.OperationsGet(nil, timeStartStr, timeNow.Format(time.RFC3339), nil)

@@ -49,9 +49,10 @@ func (cv CValue) String() string {
 }
 
 type Deal struct {
-	Date     time.Time
-	Price    CValue
-	Quantity int
+	Date       time.Time
+	Price      CValue
+	Quantity   int
+	Commission float64
 }
 
 func (deal Deal) String() string {
@@ -61,6 +62,11 @@ func (deal Deal) String() string {
 		deal.Price.Value,
 		deal.Quantity,
 		deal.Price.Mult(float64(deal.Quantity)))
+}
+
+type Dividend struct {
+	Date  time.Time
+	Value float64
 }
 
 type Portion struct {
@@ -93,8 +99,9 @@ type PositionInfo struct {
 	Ticker   string
 	IsClosed bool
 
-	Deals    []*Deal
-	Portions []*Portion
+	Deals     []*Deal
+	Dividends []*Dividend
+	Portions  []*Portion
 
 	CurrentPrice      CValue
 	Quantity          float64 // TODO remove

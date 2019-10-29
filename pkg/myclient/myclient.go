@@ -242,9 +242,10 @@ func (c *myClient) processPortfolio() error {
 
 		if op.OperationType == "Buy" || op.OperationType == "BuyCard" || op.OperationType == "Sell" {
 			deal := &schema.Deal{
-				Date:     date,
-				Price:    schema.NewCValue(op.Price, op.Currency),
-				Quantity: int(op.Quantity),
+				Date:       date,
+				Price:      schema.NewCValue(op.Price, op.Currency),
+				Quantity:   int(op.Quantity),
+				Commission: op.Commission.Value,
 			}
 			if op.OperationType == "Sell" {
 				deal.Quantity = -deal.Quantity
@@ -253,9 +254,16 @@ func (c *myClient) processPortfolio() error {
 			pinfo.Deals = append(pinfo.Deals, deal)
 
 		} else if op.OperationType == "BrokerCommission" {
+			// negative
 			pinfo.AccumulatedIncome.Value += op.Payment
 		} else if op.OperationType == "Dividend" || op.OperationType == "TaxDividend" {
+			// positive, negative
 			pinfo.AccumulatedIncome.Value += op.Payment
+			pinfo.Dividends = append(pinfo.Dividends,
+				&schema.Dividend{
+					Date:  date,
+					Value: op.Payment,
+				})
 		} else {
 			log.Printf("Unprocessed transaction %v", op)
 		}
@@ -333,12 +341,26 @@ func (c *myClient) makePortions(pinfo *schema.PositionInfo) {
 
 	// can now calculate balance and yields
 	for _, po = range pinfo.Portions {
-		// TODO dividends etc
-		var expense float64
+		var expense float64 = 0
+
+		profit := po.Close.Price.Mult(float64(-po.Close.Quantity))
+
+		for _, div := range pinfo.Dividends {
+			if div.Date.Before(po.Buys[0].Date) {
+				continue
+			}
+			if div.Date.After(po.Close.Date) {
+				// TODO not quite right. Dividends come with delay
+				continue
+			}
+			profit.Value += div.Value
+		}
+
 		for _, deal := range po.Buys {
 			expense += deal.Price.Value * float64(deal.Quantity)
+			expense += -deal.Commission
 		}
-		profit := po.Close.Price.Mult(float64(-po.Close.Quantity))
+		expense += -po.Close.Commission
 
 		po.Yield = profit.Div(expense / 100)
 		po.Yield.Value -= 100

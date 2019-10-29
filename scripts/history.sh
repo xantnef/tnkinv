@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
 
-exec >> history.log
+exec >> $(dirname $0)/../history.log
 date
-noproxy go run cmd/tnkinv.go --token token.token
+go run $(dirname $0)/../cmd/tnkinv.go $@

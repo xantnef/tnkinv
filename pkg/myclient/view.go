@@ -77,12 +77,32 @@ func (c *myClient) printPortfolio() {
 }
 
 func (c *myClient) forSortedPositions(cb func(pinfo *schema.PositionInfo)) {
-	var figis []string
-	for figi := range c.positions {
-		figis = append(figis, figi)
+	if len(c.figisSorted) == 0 {
+		var figis []string
+		for figi := range c.positions {
+			figis = append(figis, figi)
+		}
+
+		sort.Slice(figis, func(i, j int) bool {
+			p1 := c.positions[figis[i]]
+			p2 := c.positions[figis[j]]
+
+			if p1.IsClosed && !p2.IsClosed {
+				return false
+			}
+			if !p1.IsClosed && p2.IsClosed {
+				return true
+			}
+
+			t1 := p1.Portions[len(p1.Portions)-1].Buys[0].Date
+			t2 := p2.Portions[len(p2.Portions)-1].Buys[0].Date
+
+			return t1.Before(t2)
+		})
+		c.figisSorted = figis
 	}
-	sort.Strings(figis)
-	for _, figi := range figis {
+
+	for _, figi := range c.figisSorted {
 		cb(c.positions[figi])
 	}
 }

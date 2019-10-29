@@ -30,6 +30,8 @@ type myClient struct {
 	tickers   map[string]string
 	positions map[string]*schema.PositionInfo
 
+	figisSorted []string
+
 	totals struct {
 		commission schema.CValue
 		payins     map[string]*schema.CValue

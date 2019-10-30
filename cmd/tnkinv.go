@@ -21,13 +21,9 @@ func parseCmdline() *myclient.Config {
 }
 
 func main() {
-	c, err := myclient.NewClient(parseCmdline())
-	if err != nil {
-		fmt.Errorf("cannot create:", err)
-		os.Exit(-1)
-	}
+	c := myclient.NewClient(parseCmdline())
 
-	err = c.Run()
+	err := c.Run()
 	if err != nil {
 		fmt.Errorf("cannot run:", err)
 		os.Exit(-1)

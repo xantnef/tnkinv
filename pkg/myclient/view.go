@@ -7,8 +7,8 @@ import (
 	"../schema"
 )
 
-func (c *myClient) currExchangeDiff(currency string) (diff float64) {
-	uspos := c.positions[schema.FigiUSD]
+func (p *portfolio) currExchangeDiff(currency string) (diff float64) {
+	uspos := p.positions[schema.FigiUSD]
 	if uspos == nil {
 		return
 	}
@@ -24,11 +24,11 @@ func (c *myClient) currExchangeDiff(currency string) (diff float64) {
 	return
 }
 
-func (c *myClient) printPortfolio() {
+func (p *portfolio) print() {
 	fmt.Println("== Totals ==")
 
 	fmt.Println("  Payins:")
-	for _, cv := range c.totals.payins {
+	for _, cv := range p.totals.payins {
 		if cv.Value == 0 {
 			continue
 		}
@@ -36,10 +36,10 @@ func (c *myClient) printPortfolio() {
 	}
 
 	fmt.Println("  Commissions:")
-	fmt.Printf("    %v\n", c.totals.commission)
+	fmt.Printf("    %v\n", p.totals.commission)
 
 	fmt.Println("  Assets:")
-	for _, cv := range c.totals.assets {
+	for _, cv := range p.totals.assets {
 		if cv.Value == 0 {
 			continue
 		}
@@ -47,11 +47,11 @@ func (c *myClient) printPortfolio() {
 	}
 
 	fmt.Println("  Balance:")
-	for currency, cv := range c.totals.payins {
+	for currency, cv := range p.totals.payins {
 		bal := schema.NewCValue(
-			c.totals.assets[currency].Value-cv.Value,
+			p.totals.assets[currency].Value-cv.Value,
 			currency)
-		bal.Value += c.currExchangeDiff(currency)
+		bal.Value += p.currExchangeDiff(currency)
 		if bal.Value == 0 {
 			continue
 		}
@@ -60,7 +60,7 @@ func (c *myClient) printPortfolio() {
 	}
 
 	fmt.Println("== Current positions ==")
-	c.forSortedPositions(func(pinfo *schema.PositionInfo) {
+	p.forSortedPositions(func(pinfo *schema.PositionInfo) {
 		if pinfo.IsClosed {
 			return
 		}
@@ -68,7 +68,7 @@ func (c *myClient) printPortfolio() {
 	})
 
 	fmt.Println("== Closed positions ==")
-	c.forSortedPositions(func(pinfo *schema.PositionInfo) {
+	p.forSortedPositions(func(pinfo *schema.PositionInfo) {
 		if !pinfo.IsClosed {
 			return
 		}
@@ -76,16 +76,16 @@ func (c *myClient) printPortfolio() {
 	})
 }
 
-func (c *myClient) forSortedPositions(cb func(pinfo *schema.PositionInfo)) {
-	if len(c.figisSorted) == 0 {
+func (p *portfolio) forSortedPositions(cb func(pinfo *schema.PositionInfo)) {
+	if len(p.figisSorted) == 0 {
 		var figis []string
-		for figi := range c.positions {
+		for figi := range p.positions {
 			figis = append(figis, figi)
 		}
 
 		sort.Slice(figis, func(i, j int) bool {
-			p1 := c.positions[figis[i]]
-			p2 := c.positions[figis[j]]
+			p1 := p.positions[figis[i]]
+			p2 := p.positions[figis[j]]
 
 			if p1.IsClosed && !p2.IsClosed {
 				return false
@@ -99,10 +99,10 @@ func (c *myClient) forSortedPositions(cb func(pinfo *schema.PositionInfo)) {
 
 			return t1.Before(t2)
 		})
-		c.figisSorted = figis
+		p.figisSorted = figis
 	}
 
-	for _, figi := range c.figisSorted {
-		cb(c.positions[figi])
+	for _, figi := range p.figisSorted {
+		cb(p.positions[figi])
 	}
 }

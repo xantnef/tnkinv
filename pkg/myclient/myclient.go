@@ -23,10 +23,12 @@ type MyClient interface {
 }
 
 type myClient struct {
-	swc *swagger.APIClient
+	swc       *swagger.APIClient
+	cfg       Config
+	portfolio portfolio
+}
 
-	cfg Config
-
+type portfolio struct {
 	tickers   map[string]string
 	positions map[string]*schema.PositionInfo
 
@@ -39,31 +41,39 @@ type myClient struct {
 	}
 }
 
-func NewClient(cfg *Config) (MyClient, error) {
+func NewClient(cfg *Config) MyClient {
 	c := &myClient{
-		tickers:   make(map[string]string),
-		positions: make(map[string]*schema.PositionInfo),
+		portfolio: newPortfolio(),
 	}
-
-	c.totals.payins = make(map[string]*schema.CValue)
-	c.totals.assets = make(map[string]*schema.CValue)
-	c.makeCurrencies()
 
 	if cfg != nil {
 		c.cfg = *cfg
 	}
 
-	return c, nil
+	return c
 }
 
-func (c *myClient) makeCurrencies() {
-	for _, m := range []map[string]*schema.CValue{c.totals.payins, c.totals.assets} {
+func newPortfolio() portfolio {
+	p := portfolio{
+		tickers:   make(map[string]string),
+		positions: make(map[string]*schema.PositionInfo),
+	}
+
+	p.totals.payins = make(map[string]*schema.CValue)
+	p.totals.assets = make(map[string]*schema.CValue)
+	p.makeCurrencies()
+
+	return p
+}
+
+func (p *portfolio) makeCurrencies() {
+	for _, m := range []map[string]*schema.CValue{p.totals.payins, p.totals.assets} {
 		for cur := range schema.Currencies {
 			cv := schema.NewCValue(0, cur)
 			m[cur] = &cv
 		}
 	}
-	c.totals.commission.Currency = "RUB"
+	p.totals.commission.Currency = "RUB"
 }
 
 func (c *myClient) getToken(fname string) string {
@@ -140,16 +150,9 @@ func (c *myClient) requestTicker(figi string) string {
 	return resp.Payload.Ticker
 }
 
-func (c *myClient) processPortfolio() error {
-	//2019-08-19T18:38:33.131642+03:00
-	timeStartStr := time.Date(2018, 9, 1, 0, 0, 0, 0, time.UTC).Format(time.RFC3339)
-	timeNow := time.Now()
-
+func (c *myClient) requestPortfolio() schema.PortfolioResponse {
 	pfApi := c.getAPI().PortfolioApi
 	pfResp := schema.PortfolioResponse{}
-
-	opsApi := c.getAPI().OperationsApi
-	opsResp := schema.OperationsResponse{}
 
 	body, err := pfApi.PortfolioGet(nil)
 	if err != nil {
@@ -164,29 +167,18 @@ func (c *myClient) processPortfolio() error {
 	//log.Print(string(body))
 	//log.Print(pfResp)
 
-	for _, pos := range pfResp.Payload.Positions {
-		currency := pos.ExpectedYield.Currency
-		c.tickers[pos.Figi] = pos.Ticker
+	return pfResp
+}
 
-		pinfo := &schema.PositionInfo{
-			Figi:         pos.Figi,
-			Ticker:       pos.Ticker,
-			CurrentPrice: schema.NewCValue(c.requestCurrentPrice(pos.Figi), currency),
-			Quantity:     pos.Balance,
+func (c *myClient) requestOperations() schema.OperationsResponse {
+	//2019-08-19T18:38:33.131642+03:00
+	timeStartStr := time.Date(2018, 9, 1, 0, 0, 0, 0, time.UTC).Format(time.RFC3339)
+	timeNow := time.Now()
 
-			AccumulatedIncome: schema.NewCValue(0, currency),
-		}
+	opsApi := c.getAPI().OperationsApi
+	opsResp := schema.OperationsResponse{}
 
-		c.positions[pos.Figi] = pinfo
-
-		if pos.Figi == schema.FigiUSD {
-			c.totals.assets["USD"].Value += pos.Balance
-		} else {
-			c.totals.assets[currency].Value += pinfo.CurrentPrice.Value * pinfo.Quantity
-		}
-	}
-
-	body, err = opsApi.OperationsGet(nil, timeStartStr, timeNow.Format(time.RFC3339), nil)
+	body, err := opsApi.OperationsGet(nil, timeStartStr, timeNow.Format(time.RFC3339), nil)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -198,6 +190,36 @@ func (c *myClient) processPortfolio() error {
 
 	//log.Print(string(body))
 	//log.Print(opsResp)
+
+	return opsResp
+}
+
+func (p *portfolio) processPortfolio(c *myClient) error {
+	pfResp := c.requestPortfolio()
+
+	for _, pos := range pfResp.Payload.Positions {
+		currency := pos.ExpectedYield.Currency
+		p.tickers[pos.Figi] = pos.Ticker
+
+		pinfo := &schema.PositionInfo{
+			Figi:         pos.Figi,
+			Ticker:       pos.Ticker,
+			CurrentPrice: schema.NewCValue(c.requestCurrentPrice(pos.Figi), currency),
+			Quantity:     pos.Balance,
+
+			AccumulatedIncome: schema.NewCValue(0, currency),
+		}
+
+		p.positions[pos.Figi] = pinfo
+
+		if pos.Figi == schema.FigiUSD {
+			p.totals.assets["USD"].Value += pos.Balance
+		} else {
+			p.totals.assets[currency].Value += pinfo.CurrentPrice.Value * pinfo.Quantity
+		}
+	}
+
+	opsResp := c.requestOperations()
 
 	//log.Print("== Transaction log ==")
 
@@ -214,7 +236,7 @@ func (c *myClient) processPortfolio() error {
 
 		/* log.Printf("at %s %s some %s",
 		date.String(), op.OperationType+"-ed",
-		c.tickers[op.Figi])*/
+		p.tickers[op.Figi])*/
 
 		if op.Status != "Done" {
 			// cancelled declined etc
@@ -223,21 +245,21 @@ func (c *myClient) processPortfolio() error {
 
 		if op.Figi == "" {
 			if op.OperationType == "PayIn" {
-				c.totals.payins[op.Currency].Value += op.Payment
+				p.totals.payins[op.Currency].Value += op.Payment
 			} else if op.OperationType == "ServiceCommission" {
-				c.totals.commission.Value += op.Payment
+				p.totals.commission.Value += op.Payment
 			}
 			continue
 		}
 
-		pinfo := c.positions[op.Figi]
+		pinfo := p.positions[op.Figi]
 		if pinfo == nil {
 			pinfo = &schema.PositionInfo{
 				Figi:     op.Figi,
 				Ticker:   c.requestTicker(op.Figi),
 				IsClosed: true,
 			}
-			c.positions[op.Figi] = pinfo
+			p.positions[op.Figi] = pinfo
 		}
 
 		if op.OperationType == "Buy" || op.OperationType == "BuyCard" || op.OperationType == "Sell" {
@@ -269,14 +291,14 @@ func (c *myClient) processPortfolio() error {
 		}
 	}
 
-	for _, pinfo := range c.positions {
-		c.makePortions(pinfo)
+	for _, pinfo := range p.positions {
+		p.makePortions(pinfo)
 	}
 
 	return nil
 }
 
-func (c *myClient) makePortions(pinfo *schema.PositionInfo) {
+func (p *portfolio) makePortions(pinfo *schema.PositionInfo) {
 	var po *schema.Portion
 	var balance int
 
@@ -382,8 +404,8 @@ func (c *myClient) Run() error {
 		return nil
 	}
 
-	c.processPortfolio()
-	c.printPortfolio()
+	c.portfolio.processPortfolio(c)
+	c.portfolio.print()
 
 	return nil
 }

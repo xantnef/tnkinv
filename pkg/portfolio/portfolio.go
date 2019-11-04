@@ -78,12 +78,7 @@ func (p *Portfolio) Collect(c *client.MyClient) error {
 	for _, op := range opsResp.Payload.Operations {
 		date, err := time.Parse(time.RFC3339, op.Date)
 		if err != nil {
-			// crutch one crippled transaction
-			if op.Date == "2019-08-23T00:00+03:00" {
-				op.Date = "2019-08-23T00:00:00+03:00"
-			} else {
-				log.Printf("Failed to parse time: %v", err)
-			}
+			log.Fatal("Failed to parse time: %v", err)
 		}
 
 		/* log.Printf("at %s %s some %s",

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"../pkg/myclient"
+	"../pkg/client"
 )
 
 func parseCmdline() *myclient.Config {

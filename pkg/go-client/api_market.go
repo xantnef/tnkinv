@@ -101,7 +101,7 @@ MarketApiService Получение исторических свечей по F
 
 
 */
-func (a *MarketApiService) MarketCandlesGet(ctx context.Context, figi interface{}, from interface{}, to interface{}, interval interface{}) (*http.Response, error) {
+func (a *MarketApiService) MarketCandlesGet(ctx context.Context, figi interface{}, from interface{}, to interface{}, interval interface{}) ([]byte, error) {
 	var (
 		localVarHttpMethod = strings.ToUpper("Get")
 		localVarPostBody   interface{}
@@ -144,13 +144,13 @@ func (a *MarketApiService) MarketCandlesGet(ctx context.Context, figi interface{
 
 	localVarHttpResponse, err := a.client.callAPI(r)
 	if err != nil || localVarHttpResponse == nil {
-		return localVarHttpResponse, err
+		return nil, err
 	}
 
 	localVarBody, err := ioutil.ReadAll(localVarHttpResponse.Body)
 	localVarHttpResponse.Body.Close()
 	if err != nil {
-		return localVarHttpResponse, err
+		return nil, err
 	}
 
 	if localVarHttpResponse.StatusCode >= 300 {
@@ -159,10 +159,10 @@ func (a *MarketApiService) MarketCandlesGet(ctx context.Context, figi interface{
 			error: localVarHttpResponse.Status,
 		}
 
-		return localVarHttpResponse, newErr
+		return nil, newErr
 	}
 
-	return localVarHttpResponse, nil
+	return localVarBody, nil
 }
 
 /*

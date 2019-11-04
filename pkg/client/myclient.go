@@ -139,6 +139,29 @@ func (c *MyClient) RequestOperations() schema.OperationsResponse {
 	return opsResp
 }
 
+func (c *MyClient) RequestCandles(figi string, t1, t2 time.Time, interval string) schema.CandlesResponse {
+	t1Str := t1.Format(time.RFC3339)
+	t2Str := t2.Format(time.RFC3339)
+
+	mktApi := c.getAPI().MarketApi
+	mktResp := schema.CandlesResponse{}
+
+	body, err := mktApi.MarketCandlesGet(nil, figi, t1Str, t2Str, interval)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err = json.Unmarshal(body, &mktResp)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	//log.Print(string(body))
+	//log.Print(mktResp)
+
+	return mktResp
+}
+
 func (c *MyClient) Stop() {
 
 }

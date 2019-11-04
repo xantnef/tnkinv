@@ -1,4 +1,4 @@
-package myclient
+package portfolio
 
 import (
 	"fmt"
@@ -7,7 +7,7 @@ import (
 	"../schema"
 )
 
-func (p *portfolio) currExchangeDiff(currency string) (diff float64) {
+func (p *Portfolio) currExchangeDiff(currency string) (diff float64) {
 	uspos := p.positions[schema.FigiUSD]
 	if uspos == nil {
 		return
@@ -24,7 +24,7 @@ func (p *portfolio) currExchangeDiff(currency string) (diff float64) {
 	return
 }
 
-func (p *portfolio) print() {
+func (p *Portfolio) Print() {
 	fmt.Println("== Totals ==")
 
 	fmt.Println("  Payins:")
@@ -76,7 +76,7 @@ func (p *portfolio) print() {
 	})
 }
 
-func (p *portfolio) forSortedPositions(cb func(pinfo *schema.PositionInfo)) {
+func (p *Portfolio) forSortedPositions(cb func(pinfo *schema.PositionInfo)) {
 	if len(p.figisSorted) == 0 {
 		var figis []string
 		for figi := range p.positions {

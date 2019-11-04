@@ -2,31 +2,44 @@ package main
 
 import (
 	"flag"
-	"fmt"
-	"os"
+	"log"
 
 	"../pkg/client"
+	"../pkg/portfolio"
 )
 
-func parseCmdline() *myclient.Config {
+type config struct {
+	token     string
+	sandToken string
+}
+
+func parseCmdline() config {
 	token := flag.String("token", "", "API token")
 	sandToken := flag.String("sandtoken", "", "sandbox API token")
 
 	flag.Parse()
 
-	return &myclient.Config{
-		Token:     *token,
-		SandToken: *sandToken,
+	return config{
+		token:     *token,
+		sandToken: *sandToken,
 	}
 }
 
 func main() {
-	c := myclient.NewClient(parseCmdline())
+	cfg := parseCmdline()
 
-	err := c.Run()
-	if err != nil {
-		fmt.Errorf("cannot run:", err)
-		os.Exit(-1)
+	if cfg.sandToken != "" {
+		c := client.NewClient(cfg.sandToken)
+		c.TrySandbox()
+		c.Stop()
 	}
-	c.Stop()
+
+	if cfg.token == "" {
+		log.Printf("no token provided")
+		return
+	}
+
+	port := portfolio.NewPortfolio()
+	port.Collect(client.NewClient(cfg.token))
+	port.Print()
 }

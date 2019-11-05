@@ -148,6 +148,7 @@ func (p *Portfolio) Collect(c *client.MyClient) error {
 func (p *Portfolio) makePortions(pinfo *schema.PositionInfo) {
 	var po *schema.Portion
 	var balance int
+	var spent float64
 
 	now := time.Now()
 
@@ -156,8 +157,10 @@ func (p *Portfolio) makePortions(pinfo *schema.PositionInfo) {
 	})
 
 	for _, deal := range pinfo.Deals {
+		dealValue := float64(deal.Quantity) * deal.Price.Value
 
 		balance += deal.Quantity
+		spent += dealValue
 
 		if deal.Quantity > 0 { // buy
 			if po == nil {
@@ -167,8 +170,8 @@ func (p *Portfolio) makePortions(pinfo *schema.PositionInfo) {
 					AvgDate: deal.Date,
 				}
 			} else {
-				// TODO this is wrong
-				mult := float64(deal.Quantity) / float64(deal.Quantity+balance)
+				// TODO think again is this correct?
+				mult := dealValue / spent
 
 				biasDays := int(math.Round(deal.Date.Sub(po.AvgDate).Hours() * mult / 24))
 				po.AvgDate.AddDate(0, 0, biasDays)
@@ -212,7 +215,7 @@ func (p *Portfolio) makePortions(pinfo *schema.PositionInfo) {
 
 	// can now calculate balance and yields
 	for _, po = range pinfo.Portions {
-		var expense float64 = 0
+		var expense float64
 
 		profit := po.Close.Price.Mult(float64(-po.Close.Quantity))
 

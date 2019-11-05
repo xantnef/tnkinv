@@ -109,7 +109,8 @@ func (p *Portfolio) Collect(c *client.MyClient) error {
 			p.positions[op.Figi] = pinfo
 		}
 
-		if op.OperationType == "Buy" || op.OperationType == "BuyCard" || op.OperationType == "Sell" {
+		if op.OperationType == "Buy" || op.OperationType == "BuyCard" ||
+			op.OperationType == "Sell" {
 			deal := &schema.Deal{
 				Date:       date,
 				Price:      schema.NewCValue(op.Price, op.Currency),
@@ -173,10 +174,12 @@ func (p *Portfolio) makePortions(pinfo *schema.PositionInfo) {
 				// TODO think again is this correct?
 				mult := dealValue / spent
 
-				biasDays := int(math.Round(deal.Date.Sub(po.AvgDate).Hours() * mult / 24))
+				biasDays := int(math.Round(deal.Date.Sub(po.AvgDate).Hours() *
+					mult / 24))
 				po.AvgDate.AddDate(0, 0, biasDays)
 
-				po.AvgPrice.Value = deal.Price.Value*mult + po.AvgPrice.Value*(1-mult)
+				po.AvgPrice.Value = deal.Price.Value*mult +
+					po.AvgPrice.Value*(1-mult)
 			}
 
 			po.Buys = append(po.Buys, deal)

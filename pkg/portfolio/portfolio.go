@@ -166,7 +166,6 @@ func (p *Portfolio) makePortions(pinfo *schema.PositionInfo) {
 					Balance: schema.NewCValue(0, deal.Price.Currency),
 					AvgDate: deal.Date,
 				}
-				pinfo.Portions = append(pinfo.Portions, po)
 			} else {
 				// TODO this is wrong
 				mult := float64(deal.Quantity) / float64(deal.Quantity+balance)
@@ -182,6 +181,7 @@ func (p *Portfolio) makePortions(pinfo *schema.PositionInfo) {
 		} else { // sell
 			if balance > 0 {
 				log.Printf("Partial sells are not handled nicely yet")
+				po = nil
 				break
 			}
 			if balance < 0 {
@@ -191,6 +191,7 @@ func (p *Portfolio) makePortions(pinfo *schema.PositionInfo) {
 			// complete sell
 			po.Close = deal
 			po.IsClosed = true
+			pinfo.Portions = append(pinfo.Portions, po)
 			// begin to fill new portion
 			po = nil
 		}
@@ -206,6 +207,7 @@ func (p *Portfolio) makePortions(pinfo *schema.PositionInfo) {
 			Price:    pinfo.CurrentPrice,
 			Quantity: -balance,
 		}
+		pinfo.Portions = append(pinfo.Portions, po)
 	}
 
 	// can now calculate balance and yields

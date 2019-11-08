@@ -7,23 +7,6 @@ import (
 	"../schema"
 )
 
-func (p *Portfolio) currExchangeDiff(currency string) (diff float64) {
-	uspos := p.positions[schema.FigiUSD]
-	if uspos == nil {
-		return
-	}
-
-	for _, deal := range uspos.Deals {
-		if currency == "RUB" {
-			diff += deal.Price.Value * float64(deal.Quantity)
-		}
-		if currency == "USD" {
-			diff -= float64(deal.Quantity)
-		}
-	}
-	return
-}
-
 func (p *Portfolio) Print() {
 	fmt.Println("== Totals ==")
 
@@ -47,11 +30,8 @@ func (p *Portfolio) Print() {
 	}
 
 	fmt.Println("  Balance:")
-	for currency, cv := range p.totals.payins {
-		bal := schema.NewCValue(
-			p.totals.assets[currency].Value-cv.Value,
-			currency)
-		bal.Value += p.currExchangeDiff(currency)
+	for currency := range p.totals.payins {
+		bal := p.GetBalance(currency)
 		if bal.Value == 0 {
 			continue
 		}

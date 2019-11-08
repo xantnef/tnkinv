@@ -36,6 +36,23 @@ func NewPortfolio() *Portfolio {
 	return p
 }
 
+func (p *Portfolio) currExchangeDiff(currency string) (diff float64) {
+	uspos := p.positions[schema.FigiUSD]
+	if uspos == nil {
+		return
+	}
+
+	for _, deal := range uspos.Deals {
+		if currency == "RUB" {
+			diff += deal.Price.Value * float64(deal.Quantity)
+		}
+		if currency == "USD" {
+			diff -= float64(deal.Quantity)
+		}
+	}
+	return
+}
+
 func (p *Portfolio) makeCurrencies() {
 	for _, m := range []map[string]*schema.CValue{p.totals.payins, p.totals.assets} {
 		for cur := range schema.Currencies {
@@ -44,6 +61,16 @@ func (p *Portfolio) makeCurrencies() {
 		}
 	}
 	p.totals.commission.Currency = "RUB"
+}
+
+func (p *Portfolio) GetBalance(currency string) schema.CValue {
+	bal := schema.NewCValue(
+		p.totals.assets[currency].Value-p.totals.payins[currency].Value,
+		currency)
+
+	bal.Value += p.currExchangeDiff(currency)
+
+	return bal
 }
 
 func (p *Portfolio) Collect(c *client.MyClient) error {

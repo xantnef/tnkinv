@@ -44,7 +44,7 @@ func (p *Portfolio) currExchangeDiff(currency string) (diff float64) {
 
 	for _, deal := range uspos.Deals {
 		if currency == "RUB" {
-			diff += deal.Price.Value * float64(deal.Quantity)
+			diff += deal.Value()
 		}
 		if currency == "USD" {
 			diff -= float64(deal.Quantity)
@@ -185,10 +185,8 @@ func (p *Portfolio) makePortions(pinfo *schema.PositionInfo) {
 	})
 
 	for _, deal := range pinfo.Deals {
-		dealValue := float64(deal.Quantity) * deal.Price.Value
-
 		balance += deal.Quantity
-		spent += dealValue
+		spent += deal.Value()
 
 		if deal.Quantity > 0 { // buy
 			if po == nil {
@@ -199,7 +197,7 @@ func (p *Portfolio) makePortions(pinfo *schema.PositionInfo) {
 				}
 			} else {
 				// TODO think again is this correct?
-				mult := dealValue / spent
+				mult := deal.Value() / spent
 
 				biasDays := int(math.Round(deal.Date.Sub(po.AvgDate).Hours() *
 					mult / 24))
@@ -261,7 +259,7 @@ func (p *Portfolio) makePortions(pinfo *schema.PositionInfo) {
 		}
 
 		for _, deal := range po.Buys {
-			expense += deal.Price.Value * float64(deal.Quantity)
+			expense += deal.Value()
 			expense += -deal.Commission
 		}
 		expense += -po.Close.Commission

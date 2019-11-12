@@ -64,6 +64,10 @@ func (deal Deal) String() string {
 		deal.Price.Mult(float64(deal.Quantity)))
 }
 
+func (deal Deal) Value() float64 {
+	return deal.Price.Value * float64(deal.Quantity)
+}
+
 type Dividend struct {
 	Date  time.Time
 	Value float64

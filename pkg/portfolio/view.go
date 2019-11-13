@@ -22,17 +22,16 @@ func (p *Portfolio) Print() {
 
 	fmt.Println("  Balance:")
 	for currency := range p.totals.Payins {
-		bal := p.GetBalance(currency)
+		bal := p.totals.Get(currency)
 		if bal.Value == 0 {
 			continue
 		}
-
 		fmt.Printf("    %v\n", bal)
 	}
 
 	fmt.Println("== Current positions ==")
 	p.forSortedPositions(func(pinfo *schema.PositionInfo) {
-		if pinfo.IsClosed {
+		if pinfo.IsClosed() {
 			return
 		}
 		fmt.Print("  " + pinfo.String() + "\n")
@@ -40,7 +39,7 @@ func (p *Portfolio) Print() {
 
 	fmt.Println("== Closed positions ==")
 	p.forSortedPositions(func(pinfo *schema.PositionInfo) {
-		if !pinfo.IsClosed {
+		if !pinfo.IsClosed() {
 			return
 		}
 		fmt.Print("  " + pinfo.String() + "\n")
@@ -55,13 +54,21 @@ func (p *Portfolio) forSortedPositions(cb func(pinfo *schema.PositionInfo)) {
 		}
 
 		sort.Slice(figis, func(i, j int) bool {
+
+			if figis[i] == schema.FigiUSD {
+				return true
+			}
+			if figis[j] == schema.FigiUSD {
+				return false
+			}
+
 			p1 := p.positions[figis[i]]
 			p2 := p.positions[figis[j]]
 
-			if p1.IsClosed && !p2.IsClosed {
+			if p1.IsClosed() && !p2.IsClosed() {
 				return false
 			}
-			if !p1.IsClosed && p2.IsClosed {
+			if !p1.IsClosed() && p2.IsClosed() {
 				return true
 			}
 

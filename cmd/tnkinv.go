@@ -40,6 +40,7 @@ func main() {
 	}
 
 	port := portfolio.NewPortfolio(client.NewClient(cfg.token))
-	port.Collect()
-	port.Print()
+	//port.Collect()
+	//port.Print()
+	port.ListBalances()
 }

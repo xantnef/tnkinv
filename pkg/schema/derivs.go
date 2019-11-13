@@ -48,6 +48,11 @@ func (cv CValue) String() string {
 	return fmt.Sprintf("{%s %.2f}", cv.Currency, cv.Value)
 }
 
+func (cv CValue) Copy() *CValue {
+	copy := cv
+	return &copy
+}
+
 // =============================================================================
 
 type CurMap map[string]*CValue
@@ -59,8 +64,8 @@ type Balance struct {
 func NewBalance() *Balance {
 	b := &Balance{
 		Commissions: make(CurMap),
-		Payins:      make(map[string]*CValue),
-		Assets:      make(map[string]*CValue),
+		Payins:      make(CurMap),
+		Assets:      make(CurMap),
 	}
 
 	b.Foreach(func(nm string, m CurMap) {
@@ -84,6 +89,18 @@ func (b *Balance) Foreach(f func(string, CurMap)) {
 	for i, m := range []CurMap{b.Payins, b.Assets, b.Commissions} {
 		f(names[i], m)
 	}
+}
+
+func (b *Balance) Copy() *Balance {
+	copy := NewBalance()
+
+	for cur := range Currencies {
+		copy.Commissions[cur] = b.Commissions[cur].Copy()
+		copy.Payins[cur] = b.Payins[cur].Copy()
+		copy.Assets[cur] = b.Assets[cur].Copy()
+	}
+
+	return copy
 }
 
 // =============================================================================
@@ -142,27 +159,35 @@ func (po Portion) String() string {
 		date, po.Balance, po.Yield.Value, po.YieldAnnual)
 }
 
+// =============================================================================
+
 type PositionInfo struct {
-	Figi     string
-	Ticker   string
-	IsClosed bool
+	Figi   string
+	Ticker string
 
 	Deals     []*Deal
 	Dividends []*Dividend
 	Portions  []*Portion
 
-	CurrentPrice      CValue
-	Quantity          float64 // TODO remove
-	AccumulatedIncome CValue
+	OpenQuantity int // TODO
+	OpenSpent    float64
+	OpenDeal     *Deal
+
+	AccumulatedIncome CValue // TODO
+}
+
+func (pinfo *PositionInfo) IsClosed() bool {
+	return pinfo.OpenDeal == nil
 }
 
 func (pinfo *PositionInfo) String() string {
 	s := fmt.Sprintf("%s:", pinfo.Ticker)
 
-	if !pinfo.IsClosed {
-		s += fmt.Sprintf(" %s (%.2f x %.0f) +acc %v",
-			pinfo.CurrentPrice.Mult(pinfo.Quantity),
-			pinfo.CurrentPrice.Value, pinfo.Quantity, pinfo.AccumulatedIncome)
+	od := pinfo.OpenDeal
+	if od != nil {
+		s += fmt.Sprintf(" %s (%.2f x %d) +acc %v",
+			od.Price.Mult(float64(-od.Quantity)),
+			od.Price.Value, -od.Quantity, pinfo.AccumulatedIncome)
 	}
 
 	s += "\n" +

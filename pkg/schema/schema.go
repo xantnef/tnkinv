@@ -23,28 +23,32 @@ type PortfolioResponse struct {
 	TrackingID string `json:"trackingId"`
 }
 
+type Operation struct {
+	Commission     CValue
+	Currency       string  `json:"currency"`
+	Date           string  `json:"date"`
+	Figi           string  `json:"figi"`
+	ID             string  `json:"id"`
+	InstrumentType string  `json:"instrumentType"`
+	IsMarginCall   bool    `json:"isMarginCall"`
+	OperationType  string  `json:"operationType"`
+	Payment        float64 `json:"payment"`
+	Price          float64 `json:"price"`
+	Quantity       uint    `json:"quantity"`
+	Status         string  `json:"status"`
+	Trades         []struct {
+		Date     string  `json:"date"`
+		Price    float64 `json:"price"`
+		Quantity uint    `json:"quantity"`
+		TradeID  string  `json:"tradeId"`
+	} `json:"trades"`
+	// Added fields below
+	DateParsed time.Time `json:"-"`
+}
+
 type OperationsResponse struct {
 	Payload struct {
-		Operations []struct {
-			Commission     CValue
-			Currency       string  `json:"currency"`
-			Date           string  `json:"date"`
-			Figi           string  `json:"figi"`
-			ID             string  `json:"id"`
-			InstrumentType string  `json:"instrumentType"`
-			IsMarginCall   bool    `json:"isMarginCall"`
-			OperationType  string  `json:"operationType"`
-			Payment        float64 `json:"payment"`
-			Price          float64 `json:"price"`
-			Quantity       uint    `json:"quantity"`
-			Status         string  `json:"status"`
-			Trades         []struct {
-				Date     string  `json:"date"`
-				Price    float64 `json:"price"`
-				Quantity uint    `json:"quantity"`
-				TradeID  string  `json:"tradeId"`
-			} `json:"trades"`
-		} `json:"operations"`
+		Operations []Operation `json:"operations"`
 	} `json:"payload"`
 	Status     string `json:"status"`
 	TrackingID string `json:"trackingId"`
@@ -98,6 +102,8 @@ type CandlesResponse struct {
 			O        float64 `json:"o"`
 			Time     string  `json:"time"`
 			V        float64 `json:"v"`
+			// Added fields below
+			TimeParsed time.Time `json:"-"`
 		} `json:"candles"`
 		Figi     string `json:"figi"`
 		Interval string `json:"interval"`

@@ -1,6 +1,7 @@
 package portfolio
 
 import (
+	"fmt"
 	"log"
 	"math"
 	"sort"
@@ -10,11 +11,19 @@ import (
 	"../schema"
 )
 
+var timeStart = time.Date(2018, 9, 1, 0, 0, 0, 0, time.UTC)
+var timeEnd = time.Now()
+
 type Portfolio struct {
 	client *client.MyClient
 
+	data struct {
+		ops schema.OperationsResponse
+	}
+
 	tickers   map[string]string
 	positions map[string]*schema.PositionInfo
+	mcandles  map[string]*schema.CandlesResponse
 
 	figisSorted []string
 
@@ -26,36 +35,12 @@ func NewPortfolio(c *client.MyClient) *Portfolio {
 		client:    c,
 		tickers:   make(map[string]string),
 		positions: make(map[string]*schema.PositionInfo),
+		mcandles:  make(map[string]*schema.CandlesResponse),
 		totals:    schema.NewBalance(),
 	}
 }
 
-func (p *Portfolio) currExchangeDiff(currency string) (diff float64) {
-	uspos := p.positions[schema.FigiUSD]
-	if uspos == nil {
-		return
-	}
-
-	for _, deal := range uspos.Deals {
-		if currency == "RUB" {
-			diff += deal.Value()
-		}
-		if currency == "USD" {
-			diff -= float64(deal.Quantity)
-		}
-	}
-	return
-}
-
-func (p *Portfolio) GetBalance(currency string) schema.CValue {
-	bal := schema.NewCValue(
-		p.totals.Assets[currency].Value-p.totals.Payins[currency].Value,
-		currency)
-
-	bal.Value += p.currExchangeDiff(currency)
-
-	return bal
-}
+// =============================================================================
 
 func (p *Portfolio) getTicker(figi string) string {
 	ticker, ok := p.tickers[figi]
@@ -66,177 +51,232 @@ func (p *Portfolio) getTicker(figi string) string {
 	return ticker
 }
 
-func (p *Portfolio) Collect() error {
-	c := p.client
+// =============================================================================
 
-	pfResp := c.RequestPortfolio()
+func (p *Portfolio) processPortfolio() {
+	pfResp := p.client.RequestPortfolio()
 
 	for _, pos := range pfResp.Payload.Positions {
-		currency := pos.ExpectedYield.Currency
 		p.tickers[pos.Figi] = pos.Ticker
-
-		pinfo := &schema.PositionInfo{
-			Figi:         pos.Figi,
-			Ticker:       pos.Ticker,
-			CurrentPrice: schema.NewCValue(c.RequestCurrentPrice(pos.Figi), currency),
-			Quantity:     pos.Balance,
-
-			AccumulatedIncome: schema.NewCValue(0, currency),
-		}
-
-		p.positions[pos.Figi] = pinfo
-
-		if pos.Figi == schema.FigiUSD {
-			p.totals.Assets["USD"].Value += pos.Balance
-		} else {
-			p.totals.Assets[currency].Value += pinfo.CurrentPrice.Value * pinfo.Quantity
-		}
 	}
+}
 
-	opsResp := c.RequestOperations()
+// =============================================================================
 
-	//log.Print("== Transaction log ==")
-
-	for _, op := range opsResp.Payload.Operations {
-		date, err := time.Parse(time.RFC3339, op.Date)
+func (p *Portfolio) preprocessOperations() {
+	ops := p.client.RequestOperations()
+	for i := range ops.Payload.Operations {
+		var err error
+		op := &ops.Payload.Operations[i]
+		op.DateParsed, err = time.Parse(time.RFC3339, op.Date)
 		if err != nil {
 			log.Fatal("Failed to parse time: %v", err)
 		}
-
-		/* log.Printf("at %s %s some %s",
-		date.String(), op.OperationType+"-ed",
-		p.tickers[op.Figi])*/
-
-		if op.Status != "Done" {
-			// cancelled declined etc
-			continue
-		}
-
-		if op.Figi == "" {
-			if op.OperationType == "PayIn" {
-				p.totals.Payins[op.Currency].Value += op.Payment
-			} else if op.OperationType == "ServiceCommission" {
-				p.totals.Commissions[op.Currency].Value += op.Payment
-			}
-			continue
-		}
-
-		pinfo := p.positions[op.Figi]
-		if pinfo == nil {
-			pinfo = &schema.PositionInfo{
-				Figi:     op.Figi,
-				Ticker:   p.getTicker(op.Figi),
-				IsClosed: true,
-			}
-			p.positions[op.Figi] = pinfo
-		}
-
-		if op.OperationType == "Buy" || op.OperationType == "BuyCard" ||
-			op.OperationType == "Sell" {
-			deal := &schema.Deal{
-				Date:       date,
-				Price:      schema.NewCValue(op.Price, op.Currency),
-				Quantity:   int(op.Quantity),
-				Commission: op.Commission.Value,
-			}
-			if op.OperationType == "Sell" {
-				deal.Quantity = -deal.Quantity
-			}
-
-			pinfo.Deals = append(pinfo.Deals, deal)
-
-		} else if op.OperationType == "BrokerCommission" {
-			// negative
-			pinfo.AccumulatedIncome.Value += op.Payment
-		} else if op.OperationType == "Dividend" || op.OperationType == "TaxDividend" {
-			// positive, negative
-			pinfo.AccumulatedIncome.Value += op.Payment
-			pinfo.Dividends = append(pinfo.Dividends,
-				&schema.Dividend{
-					Date:  date,
-					Value: op.Payment,
-				})
-		} else {
-			log.Printf("Unprocessed transaction %v", op)
-		}
 	}
 
-	for _, pinfo := range p.positions {
-		sort.Slice(pinfo.Deals, func(i, j int) bool {
-			return pinfo.Deals[i].Date.Before(pinfo.Deals[j].Date)
-		})
-		p.makePortions(pinfo)
-	}
+	sort.Slice(ops.Payload.Operations, func(i, j int) bool {
+		return ops.Payload.Operations[i].DateParsed.Before(ops.Payload.Operations[j].DateParsed)
+	})
 
-	return nil
+	p.data.ops = ops
 }
 
-func (p *Portfolio) makePortions(pinfo *schema.PositionInfo) {
-	var po *schema.Portion
-	var balance int
-	var spent float64
+// =============================================================================
 
-	now := time.Now()
-
-	for _, deal := range pinfo.Deals {
-		balance += deal.Quantity
-		spent += deal.Value()
-
-		if deal.Quantity > 0 { // buy
-			if po == nil {
-				// first deal
-				po = &schema.Portion{
-					Balance: schema.NewCValue(0, deal.Price.Currency),
-					AvgDate: deal.Date,
-				}
-			} else {
-				// TODO think again is this correct?
-				mult := deal.Value() / spent
-
-				biasDays := int(math.Round(deal.Date.Sub(po.AvgDate).Hours() *
-					mult / 24))
-				po.AvgDate.AddDate(0, 0, biasDays)
-
-				po.AvgPrice.Value = deal.Price.Value*mult +
-					po.AvgPrice.Value*(1-mult)
-			}
-
-			po.Buys = append(po.Buys, deal)
-
-		} else { // sell
-			if balance > 0 {
-				log.Printf("Partial sells are not handled nicely yet")
-				po = nil
-				break
-			}
-			if balance < 0 {
-				log.Fatal("wat")
-			}
-
-			// complete sell
-			po.Close = deal
-			po.IsClosed = true
-			pinfo.Portions = append(pinfo.Portions, po)
-			// begin to fill new portion
-			po = nil
-		}
+func (p *Portfolio) processOperation(op schema.Operation) (deal *schema.Deal) {
+	if op.Figi == "" {
+		// payins, service commissions
+		return
 	}
 
-	if po != nil {
-		if pinfo.IsClosed {
-			log.Fatal("wat")
+	pinfo := p.positions[op.Figi]
+	if pinfo == nil {
+		pinfo = &schema.PositionInfo{
+			Figi:              op.Figi,
+			Ticker:            p.getTicker(op.Figi),
+			AccumulatedIncome: schema.NewCValue(0, op.Currency),
+		}
+		p.positions[op.Figi] = pinfo
+	}
+
+	if op.OperationType == "Buy" || op.OperationType == "BuyCard" ||
+		op.OperationType == "Sell" {
+		deal = &schema.Deal{
+			Date:       op.DateParsed,
+			Price:      schema.NewCValue(op.Price, op.Currency),
+			Quantity:   int(op.Quantity),
+			Commission: op.Commission.Value,
+		}
+		if op.OperationType == "Sell" {
+			deal.Quantity = -deal.Quantity
 		}
 
-		po.Close = &schema.Deal{
-			Date:     now,
-			Price:    pinfo.CurrentPrice,
-			Quantity: -balance,
+	} else if op.OperationType == "BrokerCommission" {
+		// negative
+		pinfo.AccumulatedIncome.Value += op.Payment
+	} else if op.OperationType == "Dividend" || op.OperationType == "TaxDividend" {
+		// positive, negative
+		pinfo.AccumulatedIncome.Value += op.Payment
+		pinfo.Dividends = append(pinfo.Dividends,
+			&schema.Dividend{
+				Date:  op.DateParsed,
+				Value: op.Payment,
+			})
+	} else {
+		log.Printf("Unprocessed transaction %v", op)
+	}
+
+	return
+}
+
+// =============================================================================
+
+/*
+
+ Balance consists of:
+
+ USD
+ + Assets:
+    1. Cash balance
+        1.1 Direct payins
+        1.2 Exchanges
+        1.3 Sold stocks
+        1.4 - Bought stocks
+        1.5 - Service commissions
+    2. Open USD positions
+ - Payins
+    3. Directs payins
+    4. Exchanges
+
+RUB
+ + Assets:
+    1. Cash balance
+        1.1 Direct payins
+        1.3 Sold stocks & dollars
+        1.4 - Bought stocks & dollars
+        1.5 - Service commissions
+    2. Open RUB positions
+ - Payins:
+    3. Direct payins
+    5. - Exchanged money
+
+*/
+
+func (p *Portfolio) addOpToBalance(bal *schema.Balance, op schema.Operation) {
+	if op.OperationType == "Dividend" || op.OperationType == "TaxDividend" {
+		bal.Assets[op.Currency].Value += op.Payment
+	}
+
+	if op.Figi != "" {
+		return
+	}
+
+	if op.OperationType == "PayIn" {
+		// 1.1
+		bal.Assets[op.Currency].Value += op.Payment
+		// 3
+		bal.Payins[op.Currency].Value += op.Payment
+	} else if op.OperationType == "ServiceCommission" {
+		bal.Commissions[op.Currency].Value += op.Payment
+		// 1.5
+		bal.Assets[op.Currency].Value -= -op.Payment
+	} else {
+		log.Printf("Unprocessed transaction 2 %v", op)
+	}
+}
+
+func (p *Portfolio) addDealToBalance(bal *schema.Balance, figi string, deal *schema.Deal) {
+	pinfo := p.positions[figi]
+	if pinfo.Figi == schema.FigiUSD {
+		// Exchanges
+		// 1.2
+		bal.Assets["USD"].Value += float64(deal.Quantity)
+		// 4
+		bal.Payins["USD"].Value += float64(deal.Quantity)
+		// 5
+		bal.Payins["RUB"].Value -= deal.Value()
+	}
+	// 1.3, 1.4, 2
+	bal.Assets[deal.Price.Currency].Value -= deal.Value() - deal.Commission
+}
+
+// =============================================================================
+
+func (p *Portfolio) getOpenPortion(pinfo *schema.PositionInfo) *schema.Portion {
+	if len(pinfo.Portions) == 0 {
+		return nil
+	}
+
+	po := pinfo.Portions[len(pinfo.Portions)-1]
+	if po.IsClosed {
+		return nil
+	}
+
+	return po
+}
+
+func (p *Portfolio) addToPortions(pinfo *schema.PositionInfo, deal *schema.Deal) {
+	po := p.getOpenPortion(pinfo)
+	if po == nil {
+		po = &schema.Portion{
+			Balance: schema.NewCValue(0, deal.Price.Currency),
+			AvgDate: deal.Date,
 		}
 		pinfo.Portions = append(pinfo.Portions, po)
 	}
 
-	// can now calculate balance and yields
-	for _, po = range pinfo.Portions {
+	pinfo.OpenQuantity += deal.Quantity
+	pinfo.OpenSpent += deal.Value()
+
+	if deal.Quantity > 0 { // buy
+		// TODO think again is this correct?
+		mult := deal.Value() / pinfo.OpenSpent
+
+		biasDays := int(math.Round(deal.Date.Sub(po.AvgDate).Hours() * mult / 24))
+		po.AvgDate.AddDate(0, 0, biasDays)
+
+		po.AvgPrice.Value = deal.Price.Value*mult + po.AvgPrice.Value*(1-mult)
+		po.Buys = append(po.Buys, deal)
+
+	} else { // sell
+		if pinfo.OpenQuantity > 0 {
+			log.Printf("Partial sells are not handled nicely yet")
+			return
+		}
+		if pinfo.OpenQuantity < 0 {
+			log.Fatal("negative balance? %v", pinfo)
+		}
+
+		pinfo.OpenSpent = 0
+
+		// complete sell
+		po.Close = deal
+		po.IsClosed = true
+	}
+}
+
+func (p *Portfolio) makeOpenDeal(pinfo *schema.PositionInfo, date time.Time, price float64, setClose bool) *schema.Deal {
+	po := p.getOpenPortion(pinfo)
+	if po == nil {
+		return nil
+	}
+
+	deal := &schema.Deal{
+		Date:     date,
+		Price:    schema.NewCValue(price, po.Balance.Currency),
+		Quantity: -pinfo.OpenQuantity,
+	}
+
+	if setClose {
+		po.Close = deal
+		pinfo.OpenDeal = deal
+	}
+
+	return deal
+}
+
+func (p *Portfolio) makePortionYields(pinfo *schema.PositionInfo) {
+	for _, po := range pinfo.Portions {
 		var expense float64
 
 		profit := po.Close.Price.Mult(float64(-po.Close.Quantity))
@@ -265,5 +305,142 @@ func (p *Portfolio) makePortions(pinfo *schema.PositionInfo) {
 
 		po.Balance = profit
 		po.Balance.Value -= expense
+	}
+}
+
+// =============================================================================
+
+func (p *Portfolio) processOperations(cb func(*schema.Balance, time.Time)) *schema.Balance {
+	p.preprocessOperations()
+
+	//log.Print("== Transaction log ==")
+
+	bal := schema.NewBalance()
+
+	for _, op := range p.data.ops.Payload.Operations {
+		/* log.Printf("at %s %s some %s",
+		op.DateParsed.String(), op.OperationType+"-ed",
+		p.tickers[op.Figi])*/
+
+		if op.Status != "Done" {
+			// cancelled declined etc
+			// noone is interested in that
+			continue
+		}
+
+		cb(bal, op.DateParsed)
+
+		deal := p.processOperation(op)
+		if deal != nil {
+			pinfo := p.positions[op.Figi]
+			pinfo.Deals = append(pinfo.Deals, deal)
+
+			p.addToPortions(pinfo, deal)
+			p.addDealToBalance(bal, pinfo.Figi, deal)
+		}
+
+		p.addOpToBalance(bal, op)
+	}
+
+	return bal
+}
+
+func (p *Portfolio) addOpenDealsToBalance(bal *schema.Balance, time time.Time, pricef func(string) float64) {
+	for _, pinfo := range p.positions {
+		od := p.makeOpenDeal(pinfo, time, pricef(pinfo.Figi), true)
+
+		if od != nil && pinfo.Figi != schema.FigiUSD {
+			p.addDealToBalance(bal, pinfo.Figi, od)
+		}
+	}
+}
+
+func (p *Portfolio) Collect() {
+	c := p.client
+
+	p.processPortfolio()
+
+	p.totals = p.processOperations(func(bal *schema.Balance, opTime time.Time) {})
+
+	p.addOpenDealsToBalance(p.totals, time.Now(), c.RequestCurrentPrice)
+
+	for _, pinfo := range p.positions {
+		p.makePortionYields(pinfo)
+	}
+}
+
+// =============================================================================
+
+func (p *Portfolio) getCandles(figi string) *schema.CandlesResponse {
+	pcandles := p.mcandles[figi]
+	if pcandles != nil {
+		return pcandles
+	}
+
+	resp := p.client.RequestCandles(figi, timeStart, timeEnd, "month")
+	pcandles = &resp
+
+	for i := range pcandles.Payload.Candles {
+		var err error
+		c := &pcandles.Payload.Candles[i]
+
+		c.TimeParsed, err = time.Parse(time.RFC3339, c.Time)
+		if err != nil {
+			log.Fatal("failed to parse time %v", err)
+		}
+	}
+
+	sort.Slice(pcandles.Payload.Candles, func(i, j int) bool {
+		return pcandles.Payload.Candles[i].TimeParsed.Before(pcandles.Payload.Candles[j].TimeParsed)
+	})
+
+	p.mcandles[figi] = pcandles
+	return pcandles
+}
+
+func (p *Portfolio) ListBalances() {
+	// just for time reference, can be any figi
+	candles := p.getCandles(schema.FigiUSD).Payload.Candles
+
+	cidx := 0
+	num := len(candles)
+
+	bal := p.processOperations(func(bal *schema.Balance, opTime time.Time) {
+		if cidx == num {
+			return
+		}
+
+		t := candles[cidx].TimeParsed
+
+		if opTime.Before(t) {
+			// proceed with current candle
+			return
+		}
+
+		pricef := func(figi string) float64 {
+			return p.getCandles(figi).Payload.Candles[cidx].O
+		}
+
+		localBal := bal.Copy()
+		p.addOpenDealsToBalance(localBal, t, pricef)
+
+		pbal(t, localBal)
+
+		cidx += 1
+	})
+
+	pricef := func(figi string) float64 {
+		return p.getCandles(figi).Payload.Candles[num-1].C
+	}
+
+	p.addOpenDealsToBalance(bal, timeEnd, pricef)
+	pbal(timeEnd, bal)
+}
+
+func pbal(t time.Time, b *schema.Balance) {
+	for _, cur := range []string{"USD", "RUB"} {
+		fmt.Printf("%s, %s, %f, %f, %f\n",
+			t.Format("2006/01/02"), cur,
+			b.Payins[cur].Value, b.Assets[cur].Value, b.Get(cur).Value)
 	}
 }

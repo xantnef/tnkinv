@@ -11,6 +11,8 @@ import (
 )
 
 type Portfolio struct {
+	client *client.MyClient
+
 	tickers   map[string]string
 	positions map[string]*schema.PositionInfo
 
@@ -23,8 +25,9 @@ type Portfolio struct {
 	}
 }
 
-func NewPortfolio() *Portfolio {
+func NewPortfolio(c *client.MyClient) *Portfolio {
 	p := &Portfolio{
+		client:    c,
 		tickers:   make(map[string]string),
 		positions: make(map[string]*schema.PositionInfo),
 	}
@@ -73,7 +76,9 @@ func (p *Portfolio) GetBalance(currency string) schema.CValue {
 	return bal
 }
 
-func (p *Portfolio) Collect(c *client.MyClient) error {
+func (p *Portfolio) Collect() error {
+	c := p.client
+
 	pfResp := c.RequestPortfolio()
 
 	for _, pos := range pfResp.Payload.Positions {

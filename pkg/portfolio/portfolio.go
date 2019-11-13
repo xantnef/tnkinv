@@ -153,6 +153,9 @@ func (p *Portfolio) Collect() error {
 	}
 
 	for _, pinfo := range p.positions {
+		sort.Slice(pinfo.Deals, func(i, j int) bool {
+			return pinfo.Deals[i].Date.Before(pinfo.Deals[j].Date)
+		})
 		p.makePortions(pinfo)
 	}
 
@@ -165,10 +168,6 @@ func (p *Portfolio) makePortions(pinfo *schema.PositionInfo) {
 	var spent float64
 
 	now := time.Now()
-
-	sort.Slice(pinfo.Deals, func(i, j int) bool {
-		return pinfo.Deals[i].Date.Before(pinfo.Deals[j].Date)
-	})
 
 	for _, deal := range pinfo.Deals {
 		balance += deal.Quantity

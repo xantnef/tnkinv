@@ -10,27 +10,18 @@ import (
 func (p *Portfolio) Print() {
 	fmt.Println("== Totals ==")
 
-	fmt.Println("  Payins:")
-	for _, cv := range p.totals.payins {
-		if cv.Value == 0 {
-			continue
+	p.totals.Foreach(func(nm string, m schema.CurMap) {
+		fmt.Printf("  %s:\n", nm)
+		for _, cv := range m {
+			if cv.Value == 0 {
+				continue
+			}
+			fmt.Printf("    %v\n", *cv)
 		}
-		fmt.Printf("    %v\n", *cv)
-	}
-
-	fmt.Println("  Commissions:")
-	fmt.Printf("    %v\n", p.totals.commission)
-
-	fmt.Println("  Assets:")
-	for _, cv := range p.totals.assets {
-		if cv.Value == 0 {
-			continue
-		}
-		fmt.Printf("    %v\n", *cv)
-	}
+	})
 
 	fmt.Println("  Balance:")
-	for currency := range p.totals.payins {
+	for currency := range p.totals.Payins {
 		bal := p.GetBalance(currency)
 		if bal.Value == 0 {
 			continue

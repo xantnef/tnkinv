@@ -48,6 +48,46 @@ func (cv CValue) String() string {
 	return fmt.Sprintf("{%s %.2f}", cv.Currency, cv.Value)
 }
 
+// =============================================================================
+
+type CurMap map[string]*CValue
+
+type Balance struct {
+	Commissions, Payins, Assets CurMap
+}
+
+func NewBalance() *Balance {
+	b := &Balance{
+		Commissions: make(CurMap),
+		Payins:      make(map[string]*CValue),
+		Assets:      make(map[string]*CValue),
+	}
+
+	b.Foreach(func(nm string, m CurMap) {
+		for cur := range Currencies {
+			cv := NewCValue(0, cur)
+			m[cur] = &cv
+		}
+	})
+
+	return b
+}
+
+func (b *Balance) Get(currency string) CValue {
+	return NewCValue(
+		b.Assets[currency].Value-b.Payins[currency].Value,
+		currency)
+}
+
+func (b *Balance) Foreach(f func(string, CurMap)) {
+	names := []string{"Payins", "Assets", "Commissions"}
+	for i, m := range []CurMap{b.Payins, b.Assets, b.Commissions} {
+		f(names[i], m)
+	}
+}
+
+// =============================================================================
+
 type Deal struct {
 	Date       time.Time
 	Price      CValue
@@ -68,10 +108,14 @@ func (deal Deal) Value() float64 {
 	return deal.Price.Value * float64(deal.Quantity)
 }
 
+// =============================================================================
+
 type Dividend struct {
 	Date  time.Time
 	Value float64
 }
+
+// =============================================================================
 
 type Portion struct {
 	Buys  []*Deal
@@ -80,7 +124,7 @@ type Portion struct {
 	IsClosed bool
 
 	AvgDate  time.Time
-	AvgPrice CValue
+	AvgPrice CValue // TODO
 
 	Balance     CValue
 	Yield       CValue

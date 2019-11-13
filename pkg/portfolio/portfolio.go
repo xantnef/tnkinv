@@ -18,25 +18,16 @@ type Portfolio struct {
 
 	figisSorted []string
 
-	totals struct {
-		commission schema.CValue
-		payins     map[string]*schema.CValue
-		assets     map[string]*schema.CValue
-	}
+	totals *schema.Balance
 }
 
 func NewPortfolio(c *client.MyClient) *Portfolio {
-	p := &Portfolio{
+	return &Portfolio{
 		client:    c,
 		tickers:   make(map[string]string),
 		positions: make(map[string]*schema.PositionInfo),
+		totals:    schema.NewBalance(),
 	}
-
-	p.totals.payins = make(map[string]*schema.CValue)
-	p.totals.assets = make(map[string]*schema.CValue)
-	p.makeCurrencies()
-
-	return p
 }
 
 func (p *Portfolio) currExchangeDiff(currency string) (diff float64) {
@@ -56,19 +47,9 @@ func (p *Portfolio) currExchangeDiff(currency string) (diff float64) {
 	return
 }
 
-func (p *Portfolio) makeCurrencies() {
-	for _, m := range []map[string]*schema.CValue{p.totals.payins, p.totals.assets} {
-		for cur := range schema.Currencies {
-			cv := schema.NewCValue(0, cur)
-			m[cur] = &cv
-		}
-	}
-	p.totals.commission.Currency = "RUB"
-}
-
 func (p *Portfolio) GetBalance(currency string) schema.CValue {
 	bal := schema.NewCValue(
-		p.totals.assets[currency].Value-p.totals.payins[currency].Value,
+		p.totals.Assets[currency].Value-p.totals.Payins[currency].Value,
 		currency)
 
 	bal.Value += p.currExchangeDiff(currency)
@@ -97,9 +78,9 @@ func (p *Portfolio) Collect() error {
 		p.positions[pos.Figi] = pinfo
 
 		if pos.Figi == schema.FigiUSD {
-			p.totals.assets["USD"].Value += pos.Balance
+			p.totals.Assets["USD"].Value += pos.Balance
 		} else {
-			p.totals.assets[currency].Value += pinfo.CurrentPrice.Value * pinfo.Quantity
+			p.totals.Assets[currency].Value += pinfo.CurrentPrice.Value * pinfo.Quantity
 		}
 	}
 
@@ -124,9 +105,9 @@ func (p *Portfolio) Collect() error {
 
 		if op.Figi == "" {
 			if op.OperationType == "PayIn" {
-				p.totals.payins[op.Currency].Value += op.Payment
+				p.totals.Payins[op.Currency].Value += op.Payment
 			} else if op.OperationType == "ServiceCommission" {
-				p.totals.commission.Value += op.Payment
+				p.totals.Commissions[op.Currency].Value += op.Payment
 			}
 			continue
 		}

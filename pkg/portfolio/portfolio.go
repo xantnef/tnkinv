@@ -57,6 +57,15 @@ func (p *Portfolio) GetBalance(currency string) schema.CValue {
 	return bal
 }
 
+func (p *Portfolio) getTicker(figi string) string {
+	ticker, ok := p.tickers[figi]
+	if !ok {
+		ticker = p.client.RequestTicker(figi)
+		p.tickers[figi] = ticker
+	}
+	return ticker
+}
+
 func (p *Portfolio) Collect() error {
 	c := p.client
 
@@ -116,7 +125,7 @@ func (p *Portfolio) Collect() error {
 		if pinfo == nil {
 			pinfo = &schema.PositionInfo{
 				Figi:     op.Figi,
-				Ticker:   c.RequestTicker(op.Figi),
+				Ticker:   p.getTicker(op.Figi),
 				IsClosed: true,
 			}
 			p.positions[op.Figi] = pinfo

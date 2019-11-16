@@ -371,13 +371,13 @@ func (p *Portfolio) Collect() {
 
 // =============================================================================
 
-func (p *Portfolio) getCandles(figi string) *schema.CandlesResponse {
+func (p *Portfolio) getCandles(figi, period string) *schema.CandlesResponse {
 	pcandles := p.mcandles[figi]
 	if pcandles != nil {
 		return pcandles
 	}
 
-	resp := p.client.RequestCandles(figi, timeStart, timeEnd, "month")
+	resp := p.client.RequestCandles(figi, timeStart, timeEnd, period)
 	pcandles = &resp
 
 	for i := range pcandles.Payload.Candles {
@@ -398,9 +398,9 @@ func (p *Portfolio) getCandles(figi string) *schema.CandlesResponse {
 	return pcandles
 }
 
-func (p *Portfolio) ListBalances() {
+func (p *Portfolio) ListBalances(period string) {
 	// just for time reference, can be any figi
-	candles := p.getCandles(schema.FigiUSD).Payload.Candles
+	candles := p.getCandles(schema.FigiUSD, period).Payload.Candles
 
 	cidx := 0
 	num := len(candles)
@@ -418,7 +418,7 @@ func (p *Portfolio) ListBalances() {
 		}
 
 		pricef := func(figi string) float64 {
-			return p.getCandles(figi).Payload.Candles[cidx].O
+			return p.getCandles(figi, period).Payload.Candles[cidx].O
 		}
 
 		localBal := bal.Copy()
@@ -430,7 +430,7 @@ func (p *Portfolio) ListBalances() {
 	})
 
 	pricef := func(figi string) float64 {
-		return p.getCandles(figi).Payload.Candles[num-1].C
+		return p.getCandles(figi, period).Payload.Candles[num-1].C
 	}
 
 	p.addOpenDealsToBalance(bal, timeEnd, pricef)

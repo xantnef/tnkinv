@@ -10,7 +10,7 @@ import (
 )
 
 type config struct {
-	token     string
+	token, period string
 }
 
 func parseCmdline() (string, config) {
@@ -32,11 +32,13 @@ func parseCmdline() (string, config) {
 
 	fs := flag.NewFlagSet("", flag.ExitOnError)
 	token := fs.String("token", "", "API token")
+	period := fs.String("period", "month", "story period")
 
 	fs.Parse(os.Args[2:])
 
 	return cmd, config{
-		token:     *token,
+		token:  *token,
+		period: *period,
 	}
 }
 
@@ -64,7 +66,7 @@ func main() {
 	}
 
 	if cmd == "story" {
-		port.ListBalances()
+		port.ListBalances(cfg.period)
 		return
 	}
 }

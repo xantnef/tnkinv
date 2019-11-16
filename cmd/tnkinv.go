@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"log"
+	"os"
 
 	"../pkg/client"
 	"../pkg/portfolio"
@@ -10,37 +11,60 @@ import (
 
 type config struct {
 	token     string
-	sandToken string
 }
 
-func parseCmdline() config {
-	token := flag.String("token", "", "API token")
-	sandToken := flag.String("sandtoken", "", "sandbox API token")
+func parseCmdline() (string, config) {
 
-	flag.Parse()
+	if len(os.Args) < 2 {
+		log.Fatal("no cmd provided")
+	}
 
-	return config{
+	cmd := os.Args[1]
+	cmds := map[string]bool{
+		"sandbox": true,
+		"show":    true,
+		"story":   true,
+	}
+
+	if !cmds[cmd] {
+		log.Fatalf("unknown command %s", cmd)
+	}
+
+	fs := flag.NewFlagSet("", flag.ExitOnError)
+	token := fs.String("token", "", "API token")
+
+	fs.Parse(os.Args[2:])
+
+	return cmd, config{
 		token:     *token,
-		sandToken: *sandToken,
 	}
 }
 
 func main() {
-	cfg := parseCmdline()
-
-	if cfg.sandToken != "" {
-		c := client.NewClient(cfg.sandToken)
-		c.TrySandbox()
-		c.Stop()
-	}
+	cmd, cfg := parseCmdline()
 
 	if cfg.token == "" {
-		log.Printf("no token provided")
+		log.Fatal("no token provided")
+		return
+	}
+
+	if cmd == "sandbox" {
+		c := client.NewClient(cfg.token)
+		c.TrySandbox()
+		c.Stop()
 		return
 	}
 
 	port := portfolio.NewPortfolio(client.NewClient(cfg.token))
-	//port.Collect()
-	//port.Print()
-	port.ListBalances()
+
+	if cmd == "show" {
+		port.Collect()
+		port.Print()
+		return
+	}
+
+	if cmd == "story" {
+		port.ListBalances()
+		return
+	}
 }

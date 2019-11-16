@@ -103,6 +103,26 @@ func (b *Balance) Copy() *Balance {
 	return copy
 }
 
+func (b *Balance) GetTotal(usd, eur float64) (p, a, d float64) {
+	getprice := func(cur string) float64 {
+		if cur == "RUB" {
+			return 1
+		} else if cur == "EUR" {
+			return eur
+		} else if cur == "USD" {
+			return usd
+		}
+		return 0
+	}
+
+	for cur := range Currencies {
+		p += b.Payins[cur].Value * getprice(cur)
+		a += b.Assets[cur].Value * getprice(cur)
+		d += b.Get(cur).Value * getprice(cur)
+	}
+	return
+}
+
 // =============================================================================
 
 type Deal struct {

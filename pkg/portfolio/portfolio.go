@@ -424,7 +424,7 @@ func (p *Portfolio) ListBalances() {
 		localBal := bal.Copy()
 		p.addOpenDealsToBalance(localBal, t, pricef)
 
-		pbal(t, localBal)
+		pbal(t, localBal, pricef(schema.FigiUSD))
 
 		cidx += 1
 	})
@@ -434,13 +434,17 @@ func (p *Portfolio) ListBalances() {
 	}
 
 	p.addOpenDealsToBalance(bal, timeEnd, pricef)
-	pbal(timeEnd, bal)
+	pbal(timeEnd, bal, pricef(schema.FigiUSD))
 }
 
-func pbal(t time.Time, b *schema.Balance) {
+func pbal(t time.Time, b *schema.Balance, usdprice float64) {
 	for _, cur := range []string{"USD", "RUB"} {
 		fmt.Printf("%s, %s, %f, %f, %f\n",
 			t.Format("2006/01/02"), cur,
 			b.Payins[cur].Value, b.Assets[cur].Value, b.Get(cur).Value)
 	}
+	p, a, d := b.GetTotal(usdprice, 0)
+	fmt.Printf("%s, %s, %f, %f, %f\n",
+		t.Format("2006/01/02"), "---",
+		p, a, d)
 }

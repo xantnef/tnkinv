@@ -11,9 +11,6 @@ import (
 	"../schema"
 )
 
-var timeStart = time.Date(2018, 9, 1, 0, 0, 0, 0, time.UTC)
-var timeEnd = time.Now()
-
 type Portfolio struct {
 	client *client.MyClient
 
@@ -63,8 +60,8 @@ func (p *Portfolio) processPortfolio() {
 
 // =============================================================================
 
-func (p *Portfolio) preprocessOperations() {
-	ops := p.client.RequestOperations()
+func (p *Portfolio) preprocessOperations(start time.Time) {
+	ops := p.client.RequestOperations(start)
 	for i := range ops.Payload.Operations {
 		var err error
 		op := &ops.Payload.Operations[i]
@@ -99,8 +96,7 @@ func (p *Portfolio) processOperation(op schema.Operation) (deal *schema.Deal) {
 		p.positions[op.Figi] = pinfo
 	}
 
-	if op.OperationType == "Buy" || op.OperationType == "BuyCard" ||
-		op.OperationType == "Sell" {
+	if op.IsTrading() {
 		deal = &schema.Deal{
 			Date:       op.DateParsed,
 			Price:      schema.NewCValue(op.Price, op.Currency),
@@ -310,8 +306,8 @@ func (p *Portfolio) makePortionYields(pinfo *schema.PositionInfo) {
 
 // =============================================================================
 
-func (p *Portfolio) processOperations(cb func(*schema.Balance, time.Time)) *schema.Balance {
-	p.preprocessOperations()
+func (p *Portfolio) processOperations(start time.Time, cb func(*schema.Balance, time.Time)) *schema.Balance {
+	p.preprocessOperations(start)
 
 	//log.Print("== Transaction log ==")
 
@@ -355,12 +351,12 @@ func (p *Portfolio) addOpenDealsToBalance(bal *schema.Balance, time time.Time, p
 	}
 }
 
-func (p *Portfolio) Collect() {
+func (p *Portfolio) Collect(start time.Time) {
 	c := p.client
 
 	p.processPortfolio()
 
-	p.totals = p.processOperations(func(bal *schema.Balance, opTime time.Time) {})
+	p.totals = p.processOperations(start, func(bal *schema.Balance, opTime time.Time) {})
 
 	p.addOpenDealsToBalance(p.totals, time.Now(), c.RequestCurrentPrice)
 
@@ -371,13 +367,66 @@ func (p *Portfolio) Collect() {
 
 // =============================================================================
 
-func (p *Portfolio) getCandles(figi, period string) *schema.CandlesResponse {
+func (p *Portfolio) ListDeals(start time.Time) {
+	empty := true
+
+	p.processPortfolio()
+
+	p.preprocessOperations(start)
+
+	bal := schema.NewBalance()
+	for _, op := range p.data.ops.Payload.Operations {
+		if op.Status != "Done" {
+			// cancelled declined etc
+			// noone is interested in that
+			continue
+		}
+
+		if op.Figi != "" {
+			op.Ticker = p.getTicker(op.Figi)
+		}
+		fmt.Printf("%s\n", op)
+
+		// exploit those balance maps for totals
+		if op.IsTrading() {
+			bal.Assets[op.Currency].Value += math.Abs(op.Payment)
+			empty = false
+		} else if op.OperationType == "ServiceCommission" || op.OperationType == "BrokerCommission" {
+			bal.Payins[op.Currency].Value += math.Abs(op.Payment)
+			empty = false
+		}
+	}
+
+	if empty {
+		return
+	}
+
+	fmt.Printf(" - Total deals:\n")
+	for c := range schema.Currencies {
+		if bal.Assets[c].Value != 0 {
+			fmt.Printf("\t %s\n", bal.Assets[c])
+		}
+	}
+	fmt.Printf("   commissions:\n")
+	for c := range schema.Currencies {
+		if bal.Payins[c].Value != 0 {
+			fmt.Printf("\t %s\n", bal.Payins[c])
+		}
+	}
+
+	comms, deals, _ := bal.GetTotal(p.client.RequestCurrentPrice(schema.FigiUSD), 0)
+	fmt.Printf("   percentage: %.2f%%\n", comms/deals*100)
+}
+
+// =============================================================================
+
+func (p *Portfolio) getCandles(figi string, start time.Time, period string) *schema.CandlesResponse {
 	pcandles := p.mcandles[figi]
 	if pcandles != nil {
 		return pcandles
 	}
 
-	resp := p.client.RequestCandles(figi, timeStart, timeEnd, period)
+	resp := p.client.RequestCandles(figi, start, time.Now(), period)
 	pcandles = &resp
 
 	for i := range pcandles.Payload.Candles {
@@ -398,14 +447,14 @@ func (p *Portfolio) getCandles(figi, period string) *schema.CandlesResponse {
 	return pcandles
 }
 
-func (p *Portfolio) ListBalances(period string) {
+func (p *Portfolio) ListBalances(start time.Time, period string) {
 	// just for time reference, can be any figi
-	candles := p.getCandles(schema.FigiUSD, period).Payload.Candles
+	candles := p.getCandles(schema.FigiUSD, start, period).Payload.Candles
 
 	cidx := 0
 	num := len(candles)
 
-	bal := p.processOperations(func(bal *schema.Balance, opTime time.Time) {
+	bal := p.processOperations(start, func(bal *schema.Balance, opTime time.Time) {
 		if cidx == num {
 			return
 		}
@@ -418,7 +467,7 @@ func (p *Portfolio) ListBalances(period string) {
 		}
 
 		pricef := func(figi string) float64 {
-			return p.getCandles(figi, period).Payload.Candles[cidx].O
+			return p.getCandles(figi, start, period).Payload.Candles[cidx].O
 		}
 
 		localBal := bal.Copy()
@@ -430,11 +479,11 @@ func (p *Portfolio) ListBalances(period string) {
 	})
 
 	pricef := func(figi string) float64 {
-		return p.getCandles(figi, period).Payload.Candles[num-1].C
+		return p.getCandles(figi, start, period).Payload.Candles[num-1].C
 	}
 
-	p.addOpenDealsToBalance(bal, timeEnd, pricef)
-	pbal(timeEnd, bal, pricef(schema.FigiUSD))
+	p.addOpenDealsToBalance(bal, time.Now(), pricef)
+	pbal(time.Now(), bal, pricef(schema.FigiUSD))
 }
 
 func pbal(t time.Time, b *schema.Balance, usdprice float64) {

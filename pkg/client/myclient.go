@@ -115,9 +115,8 @@ func (c *MyClient) RequestPortfolio() schema.PortfolioResponse {
 	return pfResp
 }
 
-func (c *MyClient) RequestOperations() schema.OperationsResponse {
-	//2019-08-19T18:38:33.131642+03:00
-	timeStartStr := time.Date(2018, 9, 1, 0, 0, 0, 0, time.UTC).Format(time.RFC3339)
+func (c *MyClient) RequestOperations(start time.Time) schema.OperationsResponse {
+	timeStartStr := start.Format(time.RFC3339)
 	timeNow := time.Now()
 
 	opsApi := c.getAPI().OperationsApi

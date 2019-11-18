@@ -147,6 +147,25 @@ func (deal Deal) Value() float64 {
 
 // =============================================================================
 
+func (op Operation) String() string {
+	shortTick := op.Ticker
+	if op.Figi == FigiUSD {
+		shortTick = "USD"
+	}
+
+	return fmt.Sprintf(
+		"%s: %-17s %-4s (%-7.2f x %-3d) = %s %-9.2f",
+		op.Date, op.OperationType, shortTick, op.Price, op.Quantity,
+		op.Currency, op.Payment)
+}
+
+func (op Operation) IsTrading() bool {
+	return op.OperationType == "Buy" || op.OperationType == "BuyCard" ||
+		op.OperationType == "Sell"
+}
+
+// =============================================================================
+
 type Dividend struct {
 	Date  time.Time
 	Value float64

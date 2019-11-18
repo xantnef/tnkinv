@@ -44,6 +44,7 @@ type Operation struct {
 	} `json:"trades"`
 	// Added fields below
 	DateParsed time.Time `json:"-"`
+	Ticker     string    `json:"-"`
 }
 
 type OperationsResponse struct {

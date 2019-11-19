@@ -11,6 +11,8 @@ import (
 	"../schema"
 )
 
+var beginning = time.Date(2016, 1, 1, 0, 0, 0, 0, time.UTC)
+
 type Portfolio struct {
 	client *client.MyClient
 
@@ -306,8 +308,8 @@ func (p *Portfolio) makePortionYields(pinfo *schema.PositionInfo) {
 
 // =============================================================================
 
-func (p *Portfolio) processOperations(start time.Time, cb func(*schema.Balance, time.Time)) *schema.Balance {
-	p.preprocessOperations(start)
+func (p *Portfolio) processOperations(cb func(*schema.Balance, time.Time) bool) *schema.Balance {
+	p.preprocessOperations(beginning)
 
 	//log.Print("== Transaction log ==")
 
@@ -324,7 +326,9 @@ func (p *Portfolio) processOperations(start time.Time, cb func(*schema.Balance, 
 			continue
 		}
 
-		cb(bal, op.DateParsed)
+		if !cb(bal, op.DateParsed) {
+			break
+		}
 
 		deal := p.processOperation(op)
 		if deal != nil {
@@ -351,14 +355,16 @@ func (p *Portfolio) addOpenDealsToBalance(bal *schema.Balance, time time.Time, p
 	}
 }
 
-func (p *Portfolio) Collect(start time.Time) {
+func (p *Portfolio) Collect(at time.Time) {
 	c := p.client
 
 	p.processPortfolio()
 
-	p.totals = p.processOperations(start, func(bal *schema.Balance, opTime time.Time) {})
+	p.totals = p.processOperations(func(bal *schema.Balance, opTime time.Time) bool {
+		return opTime.Before(at)
+	})
 
-	p.addOpenDealsToBalance(p.totals, time.Now(), c.RequestCurrentPrice)
+	p.addOpenDealsToBalance(p.totals, time.Now(), c.RequestCurrentPrice) // TODO only true with at==now
 
 	for _, pinfo := range p.positions {
 		p.makePortionYields(pinfo)
@@ -454,7 +460,9 @@ func (p *Portfolio) ListBalances(start time.Time, period string) {
 	cidx := 0
 	num := len(candles)
 
-	bal := p.processOperations(start, func(bal *schema.Balance, opTime time.Time) {
+	bal := p.processOperations(func(bal *schema.Balance, opTime time.Time) (cont bool) {
+		cont = true
+
 		if cidx == num {
 			return
 		}
@@ -476,6 +484,7 @@ func (p *Portfolio) ListBalances(start time.Time, period string) {
 		pbal(t, localBal, pricef(schema.FigiUSD))
 
 		cidx += 1
+		return
 	})
 
 	pricef := func(figi string) float64 {

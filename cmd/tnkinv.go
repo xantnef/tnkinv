@@ -12,9 +12,9 @@ import (
 )
 
 type config struct {
-	token  string
-	period string
-	start  time.Time
+	token, period string
+
+	start, at time.Time
 }
 
 func parseCmdline() (string, config) {
@@ -38,20 +38,38 @@ func parseCmdline() (string, config) {
 
 	fs := flag.NewFlagSet("", flag.ExitOnError)
 	token := fs.String("token", "", "API token")
+
 	period := fs.String("period", "month", "story period")
-	start := fs.String("start", "2018/09/01", "starting point in time (format: 1922/12/28)")
+	start := fs.String("start", "", "starting point in time (format: 1922/12/28; default: year ago)")
+	atTime := fs.String("at", "", "point in time (default: now). Not supported yet")
+
 	fs.Parse(os.Args[2:])
 
-	startParsed, err := time.Parse("2006/01/02", *start)
-	if err != nil {
-		usage()
-		log.Fatalf("unrecognized date %s", *start)
+	startParsed := time.Now().AddDate(-1, 0, 0)
+	if *start != "" {
+		var err error
+		startParsed, err = time.Parse("2006/01/02", *start)
+		if err != nil {
+			usage()
+			log.Fatalf("unrecognized date %s", *start)
+		}
+	}
+
+	atTimeParsed := time.Now()
+	if *atTime != "" {
+		var err error
+		atTimeParsed, err = time.Parse("2006/01/02", *atTime)
+		if err != nil {
+			usage()
+			log.Fatalf("unrecognized date %s", *atTime)
+		}
 	}
 
 	return cmd, config{
 		token:  *token,
 		period: *period,
 		start:  startParsed,
+		at:     atTimeParsed,
 	}
 }
 
@@ -78,28 +96,28 @@ func main() {
 	port := portfolio.NewPortfolio(client.NewClient(cfg.token))
 
 	if cmd == "show" {
-		port.Collect(cfg.start)
+		port.Collect(cfg.at)
 		port.Print()
 		return
 	}
 
 	if cmd == "deals" {
-		t := time.Now()
+		since := time.Now()
 
 		if cfg.period == "day" {
-			t = t.AddDate(0, 0, -1)
+			since = since.AddDate(0, 0, -1)
 		}
 		if cfg.period == "week" {
-			t = t.AddDate(0, 0, -7)
+			since = since.AddDate(0, 0, -7)
 		}
 		if cfg.period == "month" {
-			t = t.AddDate(0, -1, 0)
+			since = since.AddDate(0, -1, 0)
 		}
 		if cfg.period == "all" {
-			t = cfg.start
+			since = time.Time{}
 		}
 
-		port.ListDeals(t)
+		port.ListDeals(since)
 		return
 	}
 

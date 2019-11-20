@@ -238,11 +238,12 @@ func (p *Portfolio) addToPortions(pinfo *schema.PositionInfo, deal *schema.Deal)
 
 	} else { // sell
 		if pinfo.OpenQuantity > 0 {
+			// TODO
 			log.Printf("Partial sells are not handled nicely yet")
 			return
 		}
 		if pinfo.OpenQuantity < 0 {
-			log.Fatal("negative balance? %v", pinfo)
+			log.Fatalf("negative balance? %v", pinfo)
 		}
 
 		pinfo.OpenSpent = 0
@@ -311,15 +312,9 @@ func (p *Portfolio) makePortionYields(pinfo *schema.PositionInfo) {
 func (p *Portfolio) processOperations(cb func(*schema.Balance, time.Time) bool) *schema.Balance {
 	p.preprocessOperations(beginning)
 
-	//log.Print("== Transaction log ==")
-
 	bal := schema.NewBalance()
 
 	for _, op := range p.data.ops.Payload.Operations {
-		/* log.Printf("at %s %s some %s",
-		op.DateParsed.String(), op.OperationType+"-ed",
-		p.tickers[op.Figi])*/
-
 		if op.Status != "Done" {
 			// cancelled declined etc
 			// noone is interested in that

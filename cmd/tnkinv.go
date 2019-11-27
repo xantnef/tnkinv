@@ -23,6 +23,8 @@ func parseCmdline() (string, config) {
 		log.Fatal("no cmd provided")
 	}
 
+	cfg := config{}
+
 	cmd := os.Args[1]
 	cmds := map[string]bool{
 		"sandbox": true,
@@ -45,37 +47,40 @@ func parseCmdline() (string, config) {
 
 	fs.Parse(os.Args[2:])
 
-	startParsed := time.Now().AddDate(-1, 0, 0)
+	cfg.token = *token
+	cfg.period = *period
+
 	if *start != "" {
 		var err error
-		startParsed, err = time.Parse("2006/01/02", *start)
+		cfg.start, err = time.Parse("2006/01/02", *start)
 		if err != nil {
 			usage()
 			log.Fatalf("unrecognized date %s", *start)
 		}
 	}
 
-	atTimeParsed := time.Now()
 	if *atTime != "" {
 		var err error
-		atTimeParsed, err = time.Parse("2006/01/02", *atTime)
+		cfg.at, err = time.Parse("2006/01/02", *atTime)
 		if err != nil {
 			usage()
 			log.Fatalf("unrecognized date %s", *atTime)
 		}
 	}
 
-	return cmd, config{
-		token:  *token,
-		period: *period,
-		start:  startParsed,
-		at:     atTimeParsed,
-	}
+	return cmd, cfg
 }
 
 func usage() {
 	fmt.Printf("usage:\n" +
-		"\t tnkinv {show|story|deals} --token file_with_token [--period week|month|year]\n")
+		"\t tnkinv {subcmd} [params] --token file_with_token\n" +
+		"\t   subcmds:\n" +
+		"\t     show   [--at 1922/12/28 (default: today)] \n" +
+		"\t     story  [--start 1901/01/01 (default: year ago)] \n" +
+		"\t            [--period day|week|month (default: month)] \n" +
+		"\t     deals  [--start 1901/01/01 (default: none)] \n" +
+		"\t            [--period day|week|month|all (default: month)] \n" +
+		"\t     sandbox \n")
 }
 
 func main() {
@@ -96,12 +101,20 @@ func main() {
 	port := portfolio.NewPortfolio(client.NewClient(cfg.token))
 
 	if cmd == "show" {
+		if cfg.at.IsZero() {
+			cfg.at = time.Now()
+		}
 		port.Collect(cfg.at)
 		port.Print()
 		return
 	}
 
 	if cmd == "deals" {
+		if !cfg.start.IsZero() {
+			port.ListDeals(cfg.start)
+			return
+		}
+
 		since := time.Now()
 
 		if cfg.period == "day" {
@@ -122,6 +135,9 @@ func main() {
 	}
 
 	if cmd == "story" {
+		if cfg.start.IsZero() {
+			cfg.start = time.Now().AddDate(-1, 0, 0)
+		}
 		port.ListBalances(cfg.start, cfg.period)
 		return
 	}

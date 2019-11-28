@@ -12,7 +12,7 @@ import (
 )
 
 type config struct {
-	token, period string
+	token, period, format string
 
 	start, at time.Time
 }
@@ -40,6 +40,7 @@ func parseCmdline() (string, config) {
 
 	fs := flag.NewFlagSet("", flag.ExitOnError)
 	token := fs.String("token", "", "API token")
+	format := fs.String("format", "human", "output format")
 
 	period := fs.String("period", "month", "story period")
 	start := fs.String("start", "", "starting point in time (format: 1922/12/28; default: year ago)")
@@ -49,6 +50,7 @@ func parseCmdline() (string, config) {
 
 	cfg.token = *token
 	cfg.period = *period
+	cfg.format = *format
 
 	if *start != "" {
 		var err error
@@ -73,8 +75,10 @@ func parseCmdline() (string, config) {
 
 func usage() {
 	fmt.Printf("usage:\n" +
-		"\t tnkinv {subcmd} [params] --token file_with_token\n" +
-		"\t   subcmds:\n" +
+		"\t tnkinv {subcmd} [params] --token file_with_token \n" +
+		"\t   common params: \n" +
+		"\t     --format human|table \n" +
+		"\t   subcmds: \n" +
 		"\t     show   [--at 1922/12/28 (default: today)] \n" +
 		"\t     story  [--start 1901/01/01 (default: year ago)] \n" +
 		"\t            [--period day|week|month (default: month)] \n" +
@@ -138,7 +142,7 @@ func main() {
 		if cfg.start.IsZero() {
 			cfg.start = time.Now().AddDate(-1, 0, 0)
 		}
-		port.ListBalances(cfg.start, cfg.period)
+		port.ListBalances(cfg.start, cfg.period, cfg.format)
 		return
 	}
 }

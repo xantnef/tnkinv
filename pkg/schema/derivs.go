@@ -17,6 +17,8 @@ var Currencies map[string]bool = map[string]bool{
 	"EUR": true,
 }
 
+var CurrenciesOrdered []string = []string{"USD", "EUR", "RUB"}
+
 type CValue struct {
 	Currency string
 	Value    float64
@@ -120,6 +122,44 @@ func (b *Balance) GetTotal(usd, eur float64) (p, a, d float64) {
 		a += b.Assets[cur].Value * getprice(cur)
 		d += b.Get(cur).Value * getprice(cur)
 	}
+	return
+}
+
+const (
+	TableStyle = "table"
+)
+
+func (b Balance) ToString(t time.Time, usd, eur float64, style string) (s string) {
+	actualCurrencies := []string{}
+
+	for _, cur := range CurrenciesOrdered {
+		if b.Payins[cur].Value != 0 {
+			actualCurrencies = append(actualCurrencies, cur)
+		}
+	}
+
+	p, a, d := b.GetTotal(usd, eur)
+
+	if style == TableStyle {
+		s += fmt.Sprintf("%s, ", t.Format("2006/01/02"))
+		for _, cur := range actualCurrencies {
+			s += fmt.Sprintf("%f, %f, %f, ",
+				b.Payins[cur].Value, b.Assets[cur].Value, b.Get(cur).Value)
+		}
+
+		s += fmt.Sprintf("%f, %f, %f\n", p, a, d)
+
+	} else {
+		for _, cur := range actualCurrencies {
+			s += fmt.Sprintf("%s, %s, %f, %f, %f\n",
+				t.Format("2006/01/02"), cur,
+				b.Payins[cur].Value, b.Assets[cur].Value, b.Get(cur).Value)
+		}
+
+		s += fmt.Sprintf("%s, %s, %f, %f, %f\n",
+			t.Format("2006/01/02"), "tot", p, a, d)
+	}
+
 	return
 }
 

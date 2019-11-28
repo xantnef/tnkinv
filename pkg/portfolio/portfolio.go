@@ -403,13 +403,13 @@ func (p *Portfolio) ListDeals(start time.Time) {
 	}
 
 	fmt.Printf(" - Total deals:\n")
-	for c := range schema.Currencies {
+	for _, c := range schema.CurrenciesOrdered {
 		if bal.Assets[c].Value != 0 {
 			fmt.Printf("\t %s\n", bal.Assets[c])
 		}
 	}
 	fmt.Printf("   commissions:\n")
-	for c := range schema.Currencies {
+	for _, c := range schema.CurrenciesOrdered {
 		if bal.Payins[c].Value != 0 {
 			fmt.Printf("\t %s\n", bal.Payins[c])
 		}
@@ -448,7 +448,7 @@ func (p *Portfolio) getCandles(figi string, start time.Time, period string) *sch
 	return pcandles
 }
 
-func (p *Portfolio) ListBalances(start time.Time, period string) {
+func (p *Portfolio) ListBalances(start time.Time, period, format string) {
 	// just for time reference, can be any figi
 	candles := p.getCandles(schema.FigiUSD, start, period).Payload.Candles
 
@@ -476,7 +476,7 @@ func (p *Portfolio) ListBalances(start time.Time, period string) {
 		localBal := bal.Copy()
 		p.addOpenDealsToBalance(localBal, t, pricef)
 
-		pbal(t, localBal, pricef(schema.FigiUSD))
+		fmt.Print(localBal.ToString(t, pricef(schema.FigiUSD), 0, format))
 
 		cidx += 1
 		return
@@ -487,17 +487,5 @@ func (p *Portfolio) ListBalances(start time.Time, period string) {
 	}
 
 	p.addOpenDealsToBalance(bal, time.Now(), pricef)
-	pbal(time.Now(), bal, pricef(schema.FigiUSD))
-}
-
-func pbal(t time.Time, b *schema.Balance, usdprice float64) {
-	for _, cur := range []string{"USD", "RUB"} {
-		fmt.Printf("%s, %s, %f, %f, %f\n",
-			t.Format("2006/01/02"), cur,
-			b.Payins[cur].Value, b.Assets[cur].Value, b.Get(cur).Value)
-	}
-	p, a, d := b.GetTotal(usdprice, 0)
-	fmt.Printf("%s, %s, %f, %f, %f\n",
-		t.Format("2006/01/02"), "---",
-		p, a, d)
+	fmt.Print(bal.ToString(time.Now(), pricef(schema.FigiUSD), 0, format))
 }

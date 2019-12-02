@@ -92,22 +92,24 @@ type SearchByFigiResponse struct {
 	TrackingID string `json:"trackingId"`
 }
 
+type Candle struct {
+	C        float64 `json:"c"`
+	Figi     string  `json:"figi"`
+	H        float64 `json:"h"`
+	Interval string  `json:"interval"`
+	L        float64 `json:"l"`
+	O        float64 `json:"o"`
+	Time     string  `json:"time"`
+	V        float64 `json:"v"`
+	// Added fields below
+	TimeParsed time.Time `json:"-"`
+}
+
 type CandlesResponse struct {
 	Payload struct {
-		Candles []struct {
-			C        float64 `json:"c"`
-			Figi     string  `json:"figi"`
-			H        float64 `json:"h"`
-			Interval string  `json:"interval"`
-			L        float64 `json:"l"`
-			O        float64 `json:"o"`
-			Time     string  `json:"time"`
-			V        float64 `json:"v"`
-			// Added fields below
-			TimeParsed time.Time `json:"-"`
-		} `json:"candles"`
-		Figi     string `json:"figi"`
-		Interval string `json:"interval"`
+		Candles  []Candle `json:"candles"`
+		Figi     string   `json:"figi"`
+		Interval string   `json:"interval"`
 	} `json:"payload"`
 	Status     string `json:"status"`
 	TrackingID string `json:"trackingId"`

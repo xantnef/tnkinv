@@ -448,6 +448,36 @@ func (p *Portfolio) getCandles(figi string, start time.Time, period string) *sch
 	return pcandles
 }
 
+func (p *Portfolio) getCandle(figi string, t time.Time, period string) (*schema.Candle, bool) {
+	pcandles := p.getCandles(figi, t, period).Payload.Candles
+
+	idx := sort.Search(len(pcandles), func(i int) bool {
+		return pcandles[i].TimeParsed.Equal(t) || pcandles[i].TimeParsed.After(t)
+	})
+
+	if idx == len(pcandles) {
+		return &pcandles[idx-1], true
+	}
+
+	return &pcandles[idx], false
+}
+
+func (p *Portfolio) price2(t time.Time, period string) func(figi string) float64 {
+	return func(figi string) float64 {
+		c, last := p.getCandle(figi, t, period)
+		if last {
+			return c.C
+		} else {
+			return c.O
+		}
+	}
+}
+
+func (p *Portfolio) summarize(bal *schema.Balance, t time.Time, pricef func(figi string) float64, format string) {
+	p.addOpenDealsToBalance(bal, t, pricef)
+	fmt.Print(bal.ToString(t, pricef(schema.FigiUSD), 0, format))
+}
+
 func (p *Portfolio) ListBalances(start time.Time, period, format string) {
 	// just for time reference, can be any figi
 	candles := p.getCandles(schema.FigiUSD, start, period).Payload.Candles
@@ -455,37 +485,27 @@ func (p *Portfolio) ListBalances(start time.Time, period, format string) {
 	cidx := 0
 	num := len(candles)
 
-	bal := p.processOperations(func(bal *schema.Balance, opTime time.Time) (cont bool) {
-		cont = true
-
-		if cidx == num {
-			return
-		}
-
-		t := candles[cidx].TimeParsed
-
-		if opTime.Before(t) {
-			// proceed with current candle
-			return
-		}
-
-		pricef := func(figi string) float64 {
-			return p.getCandles(figi, start, period).Payload.Candles[cidx].O
-		}
-
-		localBal := bal.Copy()
-		p.addOpenDealsToBalance(localBal, t, pricef)
-
-		fmt.Print(localBal.ToString(t, pricef(schema.FigiUSD), 0, format))
-
-		cidx += 1
+	if num == 0 {
+		log.Println("No data for this period")
 		return
-	})
-
-	pricef := func(figi string) float64 {
-		return p.getCandles(figi, start, period).Payload.Candles[num-1].C
 	}
 
-	p.addOpenDealsToBalance(bal, time.Now(), pricef)
-	fmt.Print(bal.ToString(time.Now(), pricef(schema.FigiUSD), 0, format))
+	bal := p.processOperations(func(bal *schema.Balance, opTime time.Time) bool {
+		for ; cidx < num; cidx += 1 {
+			nextTime := candles[cidx].TimeParsed
+			if opTime.Before(nextTime) {
+				break
+			}
+			p.summarize(bal.Copy(), nextTime, p.price2(nextTime, period), format)
+		}
+
+		return true
+	})
+
+	for ; cidx < num; cidx += 1 {
+		nextTime := candles[cidx].TimeParsed
+		p.summarize(bal.Copy(), nextTime, p.price2(nextTime, period), format)
+	}
+
+	p.summarize(bal.Copy(), time.Now(), p.price2(time.Now(), period), format)
 }

@@ -254,7 +254,7 @@ func (p *Portfolio) addToPortions(pinfo *schema.PositionInfo, deal *schema.Deal)
 	}
 }
 
-func (p *Portfolio) makeOpenDeal(pinfo *schema.PositionInfo, date time.Time, price float64, setClose bool) *schema.Deal {
+func (p *Portfolio) makeOpenDeal(pinfo *schema.PositionInfo, date time.Time, pricef func() float64, setClose bool) *schema.Deal {
 	po := p.getOpenPortion(pinfo)
 	if po == nil {
 		return nil
@@ -262,7 +262,7 @@ func (p *Portfolio) makeOpenDeal(pinfo *schema.PositionInfo, date time.Time, pri
 
 	deal := &schema.Deal{
 		Date:     date,
-		Price:    schema.NewCValue(price, po.Balance.Currency),
+		Price:    schema.NewCValue(pricef(), po.Balance.Currency),
 		Quantity: -pinfo.OpenQuantity,
 	}
 
@@ -342,7 +342,10 @@ func (p *Portfolio) processOperations(cb func(*schema.Balance, time.Time) bool) 
 
 func (p *Portfolio) addOpenDealsToBalance(bal *schema.Balance, time time.Time, pricef func(string) float64) {
 	for _, pinfo := range p.positions {
-		od := p.makeOpenDeal(pinfo, time, pricef(pinfo.Figi), true)
+		pricef0 := func() float64 {
+			return pricef(pinfo.Figi)
+		}
+		od := p.makeOpenDeal(pinfo, time, pricef0, true)
 
 		if od != nil && pinfo.Figi != schema.FigiUSD {
 			p.addDealToBalance(bal, pinfo.Figi, od)
@@ -462,7 +465,7 @@ func (p *Portfolio) getCandle(figi string, t time.Time, period string) (*schema.
 	return &pcandles[idx], false
 }
 
-func (p *Portfolio) price2(t time.Time, period string) func(figi string) float64 {
+func (p *Portfolio) candlePricef(t time.Time, period string) func(figi string) float64 {
 	return func(figi string) float64 {
 		c, last := p.getCandle(figi, t, period)
 		if last {
@@ -496,7 +499,7 @@ func (p *Portfolio) ListBalances(start time.Time, period, format string) {
 			if opTime.Before(nextTime) {
 				break
 			}
-			p.summarize(bal.Copy(), nextTime, p.price2(nextTime, period), format)
+			p.summarize(bal.Copy(), nextTime, p.candlePricef(nextTime, period), format)
 		}
 
 		return true
@@ -504,8 +507,8 @@ func (p *Portfolio) ListBalances(start time.Time, period, format string) {
 
 	for ; cidx < num; cidx += 1 {
 		nextTime := candles[cidx].TimeParsed
-		p.summarize(bal.Copy(), nextTime, p.price2(nextTime, period), format)
+		p.summarize(bal.Copy(), nextTime, p.candlePricef(nextTime, period), format)
 	}
 
-	p.summarize(bal.Copy(), time.Now(), p.price2(time.Now(), period), format)
+	p.summarize(bal.Copy(), time.Now(), p.candlePricef(time.Now(), period), format)
 }

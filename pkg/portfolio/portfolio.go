@@ -7,6 +7,7 @@ import (
 	"sort"
 	"time"
 
+	"../candles"
 	"../client"
 	"../schema"
 )
@@ -22,7 +23,6 @@ type Portfolio struct {
 
 	tickers   map[string]string
 	positions map[string]*schema.PositionInfo
-	mcandles  map[string]*schema.CandlesResponse
 
 	figisSorted []string
 
@@ -34,7 +34,6 @@ func NewPortfolio(c *client.MyClient) *Portfolio {
 		client:    c,
 		tickers:   make(map[string]string),
 		positions: make(map[string]*schema.PositionInfo),
-		mcandles:  make(map[string]*schema.CandlesResponse),
 		totals:    schema.NewBalance(),
 	}
 }
@@ -354,15 +353,14 @@ func (p *Portfolio) addOpenDealsToBalance(bal *schema.Balance, time time.Time, p
 }
 
 func (p *Portfolio) Collect(at time.Time) {
-	c := p.client
-
 	p.processPortfolio()
 
 	p.totals = p.processOperations(func(bal *schema.Balance, opTime time.Time) bool {
 		return opTime.Before(at)
 	})
 
-	p.addOpenDealsToBalance(p.totals, time.Now(), c.RequestCurrentPrice) // TODO only true with at==now
+	cc := candles.NewCandleCache(p.client, at.AddDate(0, 0, -7), "day")
+	p.addOpenDealsToBalance(p.totals, at, cc.Pricef(time.Now()))
 
 	for _, pinfo := range p.positions {
 		p.makePortionYields(pinfo)
@@ -424,66 +422,16 @@ func (p *Portfolio) ListDeals(start time.Time) {
 
 // =============================================================================
 
-func (p *Portfolio) getCandles(figi string, start time.Time, period string) *schema.CandlesResponse {
-	pcandles := p.mcandles[figi]
-	if pcandles != nil {
-		return pcandles
-	}
-
-	resp := p.client.RequestCandles(figi, start, time.Now(), period)
-	pcandles = &resp
-
-	for i := range pcandles.Payload.Candles {
-		var err error
-		c := &pcandles.Payload.Candles[i]
-
-		c.TimeParsed, err = time.Parse(time.RFC3339, c.Time)
-		if err != nil {
-			log.Fatal("failed to parse time %v", err)
-		}
-	}
-
-	sort.Slice(pcandles.Payload.Candles, func(i, j int) bool {
-		return pcandles.Payload.Candles[i].TimeParsed.Before(pcandles.Payload.Candles[j].TimeParsed)
-	})
-
-	p.mcandles[figi] = pcandles
-	return pcandles
-}
-
-func (p *Portfolio) getCandle(figi string, t time.Time, period string) (*schema.Candle, bool) {
-	pcandles := p.getCandles(figi, t, period).Payload.Candles
-
-	idx := sort.Search(len(pcandles), func(i int) bool {
-		return pcandles[i].TimeParsed.Equal(t) || pcandles[i].TimeParsed.After(t)
-	})
-
-	if idx == len(pcandles) {
-		return &pcandles[idx-1], true
-	}
-
-	return &pcandles[idx], false
-}
-
-func (p *Portfolio) candlePricef(t time.Time, period string) func(figi string) float64 {
-	return func(figi string) float64 {
-		c, last := p.getCandle(figi, t, period)
-		if last {
-			return c.C
-		} else {
-			return c.O
-		}
-	}
-}
-
 func (p *Portfolio) summarize(bal *schema.Balance, t time.Time, pricef func(figi string) float64, format string) {
 	p.addOpenDealsToBalance(bal, t, pricef)
 	fmt.Print(bal.ToString(t, pricef(schema.FigiUSD), 0, format))
 }
 
 func (p *Portfolio) ListBalances(start time.Time, period, format string) {
+	cc := candles.NewCandleCache(p.client, start, period)
+
 	// just for time reference, can be any figi
-	candles := p.getCandles(schema.FigiUSD, start, period).Payload.Candles
+	candles := cc.List(schema.FigiUSD).Payload.Candles
 
 	cidx := 0
 	num := len(candles)
@@ -494,21 +442,28 @@ func (p *Portfolio) ListBalances(start time.Time, period, format string) {
 	}
 
 	bal := p.processOperations(func(bal *schema.Balance, opTime time.Time) bool {
+
+		// process all candles before opTime
+
 		for ; cidx < num; cidx += 1 {
 			nextTime := candles[cidx].TimeParsed
 			if opTime.Before(nextTime) {
 				break
 			}
-			p.summarize(bal.Copy(), nextTime, p.candlePricef(nextTime, period), format)
+			p.summarize(bal.Copy(), nextTime, cc.Pricef(nextTime), format)
 		}
 
 		return true
 	})
 
+	// process all candles after the last operation
+
 	for ; cidx < num; cidx += 1 {
 		nextTime := candles[cidx].TimeParsed
-		p.summarize(bal.Copy(), nextTime, p.candlePricef(nextTime, period), format)
+		p.summarize(bal.Copy(), nextTime, cc.Pricef(nextTime), format)
 	}
 
-	p.summarize(bal.Copy(), time.Now(), p.candlePricef(time.Now(), period), format)
+	// current balance
+
+	p.summarize(bal.Copy(), time.Now(), cc.Pricef(time.Now()), format)
 }

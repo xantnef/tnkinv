@@ -119,6 +119,9 @@ func (p *Portfolio) processOperation(op schema.Operation) (deal *schema.Deal) {
 				Date:  op.DateParsed,
 				Value: op.Payment,
 			})
+	} else if op.OperationType == "Tax" {
+		// negative
+		pinfo.AccumulatedIncome.Value += op.Payment
 	} else {
 		log.Printf("Unprocessed transaction %v", op)
 	}
@@ -152,6 +155,7 @@ RUB
         1.3 Sold stocks & dollars
         1.4 - Bought stocks & dollars
         1.5 - Service commissions
+        1.6 - Tax
     2. Open RUB positions
  - Payins:
     3. Direct payins
@@ -176,6 +180,9 @@ func (p *Portfolio) addOpToBalance(bal *schema.Balance, op schema.Operation) {
 	} else if op.OperationType == "ServiceCommission" {
 		bal.Commissions[op.Currency].Value += op.Payment
 		// 1.5
+		bal.Assets[op.Currency].Value -= -op.Payment
+	} else if op.OperationType == "Tax" {
+		// 1.6
 		bal.Assets[op.Currency].Value -= -op.Payment
 	} else {
 		log.Printf("Unprocessed transaction 2 %v", op)

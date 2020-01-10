@@ -4,6 +4,13 @@ import (
 	"time"
 )
 
+const (
+	InsTypeEtf = "Etf"
+	//InsTypeBond = "Bond"
+	InsTypeStock    = "Stock"
+	InsTypeCurrency = "Currency"
+)
+
 type PortfolioResponse struct {
 	Payload struct {
 		Positions []struct {

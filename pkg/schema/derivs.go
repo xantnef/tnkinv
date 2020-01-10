@@ -251,6 +251,7 @@ func (po Portion) String() string {
 type PositionInfo struct {
 	Figi   string
 	Ticker string
+	Type   string
 
 	Deals     []*Deal
 	Dividends []*Dividend

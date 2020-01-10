@@ -30,6 +30,18 @@ func (p *Portfolio) Print() {
 		fmt.Printf("    %v\n", bal)
 	}
 
+	fmt.Println("  Distribution:")
+	for _, currency := range schema.CurrenciesOrdered {
+		if p.totals.Assets[currency].Value == 0 {
+			continue
+		}
+
+		fmt.Printf("    %6s: %v (%.0f%%)\n", schema.InsTypeEtf,
+			p.funds.Assets[currency], 100*p.funds.Assets[currency].Value/p.totals.Assets[currency].Value)
+		fmt.Printf("    %6s: %v (%.0f%%)\n", schema.InsTypeStock,
+			p.stocks.Assets[currency], 100*p.stocks.Assets[currency].Value/p.totals.Assets[currency].Value)
+	}
+
 	fmt.Println("== Current positions ==")
 	p.forSortedPositions(func(pinfo *schema.PositionInfo) {
 		if pinfo.IsClosed() {

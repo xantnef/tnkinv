@@ -26,7 +26,7 @@ type Portfolio struct {
 
 	figisSorted []string
 
-	totals *schema.Balance
+	cash, funds, bonds, stocks, totals *schema.Balance
 }
 
 func NewPortfolio(c *client.MyClient) *Portfolio {
@@ -34,7 +34,6 @@ func NewPortfolio(c *client.MyClient) *Portfolio {
 		client:    c,
 		tickers:   make(map[string]string),
 		positions: make(map[string]*schema.PositionInfo),
-		totals:    schema.NewBalance(),
 	}
 }
 
@@ -90,9 +89,23 @@ func (p *Portfolio) processOperation(op schema.Operation) (deal *schema.Deal) {
 	pinfo := p.positions[op.Figi]
 	if pinfo == nil {
 		pinfo = &schema.PositionInfo{
-			Figi:              op.Figi,
-			Ticker:            p.getTicker(op.Figi),
+			Figi:   op.Figi,
+			Ticker: p.getTicker(op.Figi),
+			Type:   op.InstrumentType,
+
 			AccumulatedIncome: schema.NewCValue(0, op.Currency),
+		}
+
+		// catch unhandled
+		{
+			m := map[string]bool{
+				schema.InsTypeEtf:      true,
+				schema.InsTypeStock:    true,
+				schema.InsTypeCurrency: true,
+			}
+			if !m[pinfo.Type] {
+				log.Printf("%s: %s", pinfo.Ticker, pinfo.Type)
+			}
 		}
 		p.positions[op.Figi] = pinfo
 	}
@@ -346,8 +359,11 @@ func (p *Portfolio) processOperations(cb func(*schema.Balance, time.Time) bool) 
 	return bal
 }
 
-func (p *Portfolio) openDealsBalance(time time.Time, pricef func(string) float64) *schema.Balance {
-	bal := schema.NewBalance()
+func (p *Portfolio) openDealsBalancePerType(time time.Time, pricef func(string) float64) map[string]*schema.Balance {
+	m := make(map[string]*schema.Balance)
+	total := schema.NewBalance()
+	m[""] = total
+
 	for _, pinfo := range p.positions {
 		pricef0 := func() float64 {
 			return pricef(pinfo.Figi)
@@ -357,21 +373,40 @@ func (p *Portfolio) openDealsBalance(time time.Time, pricef func(string) float64
 		if od == nil || pinfo.Figi == schema.FigiUSD {
 			continue
 		}
+
+		bal := m[pinfo.Type]
+		if bal == nil {
+			bal = schema.NewBalance()
+			m[pinfo.Type] = bal
+		}
+
 		p.addDealToBalance(bal, pinfo.Figi, od)
+		p.addDealToBalance(total, pinfo.Figi, od)
 	}
-	return bal
+
+	return m
+}
+
+func (p *Portfolio) openDealsBalance(time time.Time, pricef func(string) float64) *schema.Balance {
+	m := p.openDealsBalancePerType(time, pricef)
+	return m[""]
 }
 
 func (p *Portfolio) Collect(at time.Time) {
 	p.processPortfolio()
 
-	p.totals = p.processOperations(func(bal *schema.Balance, opTime time.Time) bool {
+	p.cash = p.processOperations(func(bal *schema.Balance, opTime time.Time) bool {
 		return opTime.Before(at)
 	})
 
 	cc := candles.NewCandleCache(p.client, at.AddDate(0, 0, -7), "day")
-	obal := p.openDealsBalance(at, cc.Pricef(time.Now()))
-	p.totals.Add(*obal)
+	m := p.openDealsBalancePerType(at, cc.Pricef(time.Now()))
+
+	p.funds = m[schema.InsTypeEtf]
+	//p.bonds = m[schema.InsTypeBond]
+	p.stocks = m[schema.InsTypeStock]
+	p.totals = m[""]
+	p.totals.Add(*p.cash)
 
 	for _, pinfo := range p.positions {
 		p.makePortionYields(pinfo)

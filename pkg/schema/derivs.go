@@ -151,12 +151,12 @@ func (b Balance) ToString(t time.Time, usd, eur float64, style string) (s string
 
 	} else {
 		for _, cur := range actualCurrencies {
-			s += fmt.Sprintf("%s, %s, %f, %f, %f\n",
+			s += fmt.Sprintf("%s: %s: %7.0f %7.0f %7.0f\n",
 				t.Format("2006/01/02"), cur,
 				b.Payins[cur].Value, b.Assets[cur].Value, b.Get(cur).Value)
 		}
 
-		s += fmt.Sprintf("%s, %s, %f, %f, %f\n",
+		s += fmt.Sprintf("%s: %s: %7.0f %7.0f %7.0f\n",
 			t.Format("2006/01/02"), "tot", p, a, d)
 	}
 

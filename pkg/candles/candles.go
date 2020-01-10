@@ -78,4 +78,3 @@ func (cc *CandleCache) Pricef(t time.Time) func(figi string) float64 {
 		}
 	}
 }
-

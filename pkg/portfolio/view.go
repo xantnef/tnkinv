@@ -12,7 +12,8 @@ func (p *Portfolio) Print() {
 
 	p.totals.Foreach(func(nm string, m schema.CurMap) {
 		fmt.Printf("  %s:\n", nm)
-		for _, cv := range m {
+		for _, currency := range schema.CurrenciesOrdered {
+			cv := m[currency]
 			if cv.Value == 0 {
 				continue
 			}
@@ -21,7 +22,7 @@ func (p *Portfolio) Print() {
 	})
 
 	fmt.Println("  Balance:")
-	for currency := range p.totals.Payins {
+	for _, currency := range schema.CurrenciesOrdered {
 		bal := p.totals.Get(currency)
 		if bal.Value == 0 {
 			continue

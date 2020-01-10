@@ -346,17 +346,20 @@ func (p *Portfolio) processOperations(cb func(*schema.Balance, time.Time) bool) 
 	return bal
 }
 
-func (p *Portfolio) addOpenDealsToBalance(bal *schema.Balance, time time.Time, pricef func(string) float64) {
+func (p *Portfolio) openDealsBalance(time time.Time, pricef func(string) float64) *schema.Balance {
+	bal := schema.NewBalance()
 	for _, pinfo := range p.positions {
 		pricef0 := func() float64 {
 			return pricef(pinfo.Figi)
 		}
 		od := p.makeOpenDeal(pinfo, time, pricef0, true)
 
-		if od != nil && pinfo.Figi != schema.FigiUSD {
-			p.addDealToBalance(bal, pinfo.Figi, od)
+		if od == nil || pinfo.Figi == schema.FigiUSD {
+			continue
 		}
+		p.addDealToBalance(bal, pinfo.Figi, od)
 	}
+	return bal
 }
 
 func (p *Portfolio) Collect(at time.Time) {
@@ -367,7 +370,8 @@ func (p *Portfolio) Collect(at time.Time) {
 	})
 
 	cc := candles.NewCandleCache(p.client, at.AddDate(0, 0, -7), "day")
-	p.addOpenDealsToBalance(p.totals, at, cc.Pricef(time.Now()))
+	obal := p.openDealsBalance(at, cc.Pricef(time.Now()))
+	p.totals.Add(*obal)
 
 	for _, pinfo := range p.positions {
 		p.makePortionYields(pinfo)
@@ -429,9 +433,10 @@ func (p *Portfolio) ListDeals(start time.Time) {
 
 // =============================================================================
 
-func (p *Portfolio) summarize(bal *schema.Balance, t time.Time, pricef func(figi string) float64, format string) {
-	p.addOpenDealsToBalance(bal, t, pricef)
-	fmt.Print(bal.ToString(t, pricef(schema.FigiUSD), 0, format))
+func (p *Portfolio) summarize( /* const */ bal schema.Balance, t time.Time, pricef func(figi string) float64, format string) {
+	obal := p.openDealsBalance(t, pricef)
+	obal.Add(bal)
+	fmt.Print(obal.ToString(t, pricef(schema.FigiUSD), 0, format))
 }
 
 func (p *Portfolio) ListBalances(start time.Time, period, format string) {
@@ -457,7 +462,7 @@ func (p *Portfolio) ListBalances(start time.Time, period, format string) {
 			if opTime.Before(nextTime) {
 				break
 			}
-			p.summarize(bal.Copy(), nextTime, cc.Pricef(nextTime), format)
+			p.summarize(*bal, nextTime, cc.Pricef(nextTime), format)
 		}
 
 		return true
@@ -467,10 +472,10 @@ func (p *Portfolio) ListBalances(start time.Time, period, format string) {
 
 	for ; cidx < num; cidx += 1 {
 		nextTime := candles[cidx].TimeParsed
-		p.summarize(bal.Copy(), nextTime, cc.Pricef(nextTime), format)
+		p.summarize(*bal, nextTime, cc.Pricef(nextTime), format)
 	}
 
 	// current balance
 
-	p.summarize(bal.Copy(), time.Now(), cc.Pricef(time.Now()), format)
+	p.summarize(*bal, time.Now(), cc.Pricef(time.Now()), format)
 }

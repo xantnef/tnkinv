@@ -105,6 +105,14 @@ func (b *Balance) Copy() *Balance {
 	return copy
 }
 
+func (b *Balance) Add(b2 Balance) {
+	for cur := range Currencies {
+		b.Commissions[cur].Value += b2.Commissions[cur].Value
+		b.Payins[cur].Value += b2.Payins[cur].Value
+		b.Assets[cur].Value += b2.Assets[cur].Value
+	}
+}
+
 func (b *Balance) GetTotal(usd, eur float64) (p, a, d float64) {
 	getprice := func(cur string) float64 {
 		if cur == "RUB" {

@@ -99,6 +99,22 @@ type SearchByFigiResponse struct {
 	TrackingID string `json:"trackingId"`
 }
 
+type SearchByTickerResponse struct {
+	Payload struct {
+		Instruments []struct {
+			Currency          string  `json:"currency"`
+			Figi              string  `json:"figi"`
+			Isin              string  `json:"isin"`
+			Lot               int     `json:"lot"`
+			MinPriceIncrement float64 `json:"minPriceIncrement"`
+			Name              string  `json:"name"`
+			Ticker            string  `json:"ticker"`
+		} `json:"instruments"`
+	} `json:"payload"`
+	Status     string `json:"status"`
+	TrackingID string `json:"trackingId"`
+}
+
 type Candle struct {
 	C        float64 `json:"c"`
 	Figi     string  `json:"figi"`

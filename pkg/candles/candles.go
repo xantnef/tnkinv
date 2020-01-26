@@ -68,13 +68,17 @@ func (cc *CandleCache) get(figi string, t time.Time) (*schema.Candle, bool) {
 	return &pcandles[idx], false
 }
 
+func (cc *CandleCache) Get(figi string, t time.Time) float64 {
+	c, last := cc.get(figi, t)
+	if last {
+		return c.C
+	} else {
+		return c.O
+	}
+}
+
 func (cc *CandleCache) Pricef(t time.Time) func(figi string) float64 {
 	return func(figi string) float64 {
-		c, last := cc.get(figi, t)
-		if last {
-			return c.C
-		} else {
-			return c.O
-		}
+		return cc.Get(figi, t)
 	}
 }

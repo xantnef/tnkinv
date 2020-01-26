@@ -95,6 +95,26 @@ func (c *MyClient) RequestTicker(figi string) string {
 	return resp.Payload.Ticker
 }
 
+func (c *MyClient) RequestFigi(ticker string) string {
+	mktApi := c.getAPI().MarketApi
+	resp := schema.SearchByTickerResponse{}
+
+	body, err := mktApi.MarketSearchByTickerGet(nil, ticker)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err = json.Unmarshal(body, &resp)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	//log.Print(string(body))
+	//log.Print(resp)
+
+	return resp.Payload.Instruments[0].Figi
+}
+
 func (c *MyClient) RequestPortfolio() schema.PortfolioResponse {
 	pfApi := c.getAPI().PortfolioApi
 	pfResp := schema.PortfolioResponse{}

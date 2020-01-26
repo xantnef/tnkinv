@@ -442,7 +442,7 @@ MarketApiService Получение инструмента по тикеру
 
 
 */
-func (a *MarketApiService) MarketSearchByTickerGet(ctx context.Context, ticker interface{}) (*http.Response, error) {
+func (a *MarketApiService) MarketSearchByTickerGet(ctx context.Context, ticker interface{}) ([]byte, error) {
 	var (
 		localVarHttpMethod = strings.ToUpper("Get")
 		localVarPostBody   interface{}
@@ -482,13 +482,13 @@ func (a *MarketApiService) MarketSearchByTickerGet(ctx context.Context, ticker i
 
 	localVarHttpResponse, err := a.client.callAPI(r)
 	if err != nil || localVarHttpResponse == nil {
-		return localVarHttpResponse, err
+		return nil, err
 	}
 
 	localVarBody, err := ioutil.ReadAll(localVarHttpResponse.Body)
 	localVarHttpResponse.Body.Close()
 	if err != nil {
-		return localVarHttpResponse, err
+		return nil, err
 	}
 
 	if localVarHttpResponse.StatusCode >= 300 {
@@ -497,10 +497,10 @@ func (a *MarketApiService) MarketSearchByTickerGet(ctx context.Context, ticker i
 			error: localVarHttpResponse.Status,
 		}
 
-		return localVarHttpResponse, newErr
+		return nil, newErr
 	}
 
-	return localVarHttpResponse, nil
+	return localVarBody, nil
 }
 
 /*

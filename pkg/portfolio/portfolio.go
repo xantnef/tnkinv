@@ -5,6 +5,7 @@ import (
 	"log"
 	"math"
 	"sort"
+	"sync"
 	"time"
 
 	"../candles"
@@ -46,6 +47,18 @@ func (p *Portfolio) getTicker(figi string) string {
 		p.tickers[figi] = ticker
 	}
 	return ticker
+}
+
+func (p *Portfolio) getFigi(ticker string) string {
+	for figi, tick := range p.tickers {
+		if tick == ticker {
+			return figi
+		}
+	}
+
+	figi := p.client.RequestFigi(ticker)
+	p.tickers[figi] = ticker
+	return figi
 }
 
 // =============================================================================
@@ -293,7 +306,31 @@ func (p *Portfolio) makeOpenDeal(pinfo *schema.PositionInfo, date time.Time, pri
 	return deal
 }
 
-func (p *Portfolio) makePortionYields(pinfo *schema.PositionInfo) {
+func (p *Portfolio) getYield(cc *candles.CandleCache, figi string, t1, t2 time.Time) float64 {
+	p1 := cc.Get(figi, t1)
+	p2 := cc.Get(figi, t2)
+	return p2/p1*100 - 100
+}
+
+func (p *Portfolio) getMarketFund(ticker, currency string) string {
+	if currency == "RUB" {
+		return "FXRL"
+	}
+
+	// sorry thats all I personally had so far ;)
+	fxitTickers := map[string]bool{
+		"MSFT": true,
+		"NVDA": true,
+	}
+
+	if fxitTickers[ticker] {
+		return "FXIT"
+	}
+
+	return "FXUS"
+}
+
+func (p *Portfolio) makePortionYields(cc *candles.CandleCache, pinfo *schema.PositionInfo) {
 	for _, po := range pinfo.Portions {
 		var expense float64
 
@@ -323,6 +360,13 @@ func (p *Portfolio) makePortionYields(pinfo *schema.PositionInfo) {
 
 		po.Balance = profit
 		po.Balance.Value -= expense
+
+		// now compare with the market ETF
+		if pinfo.Type == schema.InsTypeStock {
+			po.YieldMarket = p.getYield(cc,
+				p.getFigi(p.getMarketFund(pinfo.Ticker, po.Balance.Currency)),
+				po.AvgDate, po.Close.Date)
+		}
 	}
 }
 
@@ -393,13 +437,19 @@ func (p *Portfolio) openDealsBalance(time time.Time, pricef func(string) float64
 }
 
 func (p *Portfolio) Collect(at time.Time) {
+	var once sync.Once
+	var firstOpTime time.Time
+
 	p.processPortfolio()
 
 	p.cash = p.processOperations(func(bal *schema.Balance, opTime time.Time) bool {
+		once.Do(func() {
+			firstOpTime = opTime
+		})
 		return opTime.Before(at)
 	})
 
-	cc := candles.NewCandleCache(p.client, at.AddDate(0, 0, -7), "day")
+	cc := candles.NewCandleCache(p.client, firstOpTime, "week")
 	m := p.openDealsBalancePerType(at, cc.Pricef(time.Now()))
 
 	p.funds = m[schema.InsTypeEtf]
@@ -409,7 +459,7 @@ func (p *Portfolio) Collect(at time.Time) {
 	p.totals.Add(*p.cash)
 
 	for _, pinfo := range p.positions {
-		p.makePortionYields(pinfo)
+		p.makePortionYields(cc, pinfo)
 	}
 }
 

@@ -233,6 +233,7 @@ type Portion struct {
 	Balance     CValue
 	Yield       CValue
 	YieldAnnual float64
+	YieldMarket float64
 }
 
 func (po Portion) String() string {
@@ -242,8 +243,8 @@ func (po Portion) String() string {
 	}
 
 	return fmt.Sprintf(
-		"%s: %s (%.1f%%, annual %.1f%%)",
-		date, po.Balance, po.Yield.Value, po.YieldAnnual)
+		"%s: %s (%.1f%%, annual %.1f%%, market %.1f%%)",
+		date, po.Balance, po.Yield.Value, po.YieldAnnual, po.YieldMarket)
 }
 
 // =============================================================================

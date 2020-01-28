@@ -18,8 +18,10 @@ var beginning = time.Date(2016, 1, 1, 0, 0, 0, 0, time.UTC)
 type Portfolio struct {
 	client *client.MyClient
 
+	accs []string
+
 	data struct {
-		ops schema.OperationsResponse
+		ops []schema.Operation
 	}
 
 	tickers   map[string]string
@@ -30,9 +32,10 @@ type Portfolio struct {
 	cash, funds, bonds, stocks, totals *schema.Balance
 }
 
-func NewPortfolio(c *client.MyClient) *Portfolio {
+func NewPortfolio(c *client.MyClient, accs []string) *Portfolio {
 	return &Portfolio{
 		client:    c,
+		accs:      accs,
 		tickers:   make(map[string]string),
 		positions: make(map[string]*schema.PositionInfo),
 	}
@@ -63,29 +66,37 @@ func (p *Portfolio) getFigi(ticker string) string {
 
 // =============================================================================
 
-func (p *Portfolio) processPortfolio() {
-	pfResp := p.client.RequestPortfolio()
+// by now this is basically only needed to fetch many figi->ticker pairs at once
 
-	for _, pos := range pfResp.Payload.Positions {
-		p.tickers[pos.Figi] = pos.Ticker
+func (p *Portfolio) processPortfolio() {
+	for _, acc := range p.accs {
+		pfResp := p.client.RequestPortfolio(acc)
+		for _, pos := range pfResp.Payload.Positions {
+			p.tickers[pos.Figi] = pos.Ticker
+		}
 	}
 }
 
 // =============================================================================
 
 func (p *Portfolio) preprocessOperations(start time.Time) {
-	ops := p.client.RequestOperations(start)
-	for i := range ops.Payload.Operations {
+	var ops []schema.Operation
+
+	for _, acc := range p.accs {
+		resp := p.client.RequestOperations(start, acc)
+		ops = append(ops, resp.Payload.Operations...)
+	}
+
+	for i := range ops {
 		var err error
-		op := &ops.Payload.Operations[i]
-		op.DateParsed, err = time.Parse(time.RFC3339, op.Date)
+		ops[i].DateParsed, err = time.Parse(time.RFC3339, ops[i].Date)
 		if err != nil {
 			log.Fatal("Failed to parse time: %v", err)
 		}
 	}
 
-	sort.Slice(ops.Payload.Operations, func(i, j int) bool {
-		return ops.Payload.Operations[i].DateParsed.Before(ops.Payload.Operations[j].DateParsed)
+	sort.Slice(ops, func(i, j int) bool {
+		return ops[i].DateParsed.Before(ops[j].DateParsed)
 	})
 
 	p.data.ops = ops
@@ -383,7 +394,7 @@ func (p *Portfolio) processOperations(cb func(*schema.Balance, time.Time) bool) 
 
 	bal := schema.NewBalance()
 
-	for _, op := range p.data.ops.Payload.Operations {
+	for _, op := range p.data.ops {
 		if op.Status != "Done" {
 			// cancelled declined etc
 			// noone is interested in that
@@ -479,7 +490,7 @@ func (p *Portfolio) ListDeals(start time.Time) {
 	p.preprocessOperations(start)
 
 	bal := schema.NewBalance()
-	for _, op := range p.data.ops.Payload.Operations {
+	for _, op := range p.data.ops {
 		if op.Status != "Done" {
 			// cancelled declined etc
 			// noone is interested in that

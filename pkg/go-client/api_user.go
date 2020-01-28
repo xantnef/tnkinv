@@ -13,7 +13,6 @@ package swagger
 import (
 	"context"
 	"io/ioutil"
-	"net/http"
 	"net/url"
 	"strings"
 )
@@ -31,7 +30,7 @@ UserApiService Получение брокерских счетов клиент
 
 
 */
-func (a *UserApiService) UserAccountsGet(ctx context.Context) (*http.Response, error) {
+func (a *UserApiService) UserAccountsGet(ctx context.Context) ([]byte, error) {
 	var (
 		localVarHttpMethod = strings.ToUpper("Get")
 		localVarPostBody   interface{}
@@ -70,13 +69,13 @@ func (a *UserApiService) UserAccountsGet(ctx context.Context) (*http.Response, e
 
 	localVarHttpResponse, err := a.client.callAPI(r)
 	if err != nil || localVarHttpResponse == nil {
-		return localVarHttpResponse, err
+		return nil, err
 	}
 
 	localVarBody, err := ioutil.ReadAll(localVarHttpResponse.Body)
 	localVarHttpResponse.Body.Close()
 	if err != nil {
-		return localVarHttpResponse, err
+		return nil, err
 	}
 
 	if localVarHttpResponse.StatusCode >= 300 {
@@ -85,8 +84,8 @@ func (a *UserApiService) UserAccountsGet(ctx context.Context) (*http.Response, e
 			error: localVarHttpResponse.Status,
 		}
 
-		return localVarHttpResponse, newErr
+		return nil, newErr
 	}
 
-	return localVarHttpResponse, nil
+	return localVarBody, nil
 }

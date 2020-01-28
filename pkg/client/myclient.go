@@ -127,11 +127,14 @@ func (c *MyClient) RequestFigi(ticker string) string {
 	return resp.Payload.Instruments[0].Figi
 }
 
-func (c *MyClient) RequestPortfolio() schema.PortfolioResponse {
+func (c *MyClient) RequestPortfolio(acc string) schema.PortfolioResponse {
 	pfApi := c.getAPI().PortfolioApi
 	pfResp := schema.PortfolioResponse{}
+	opts := &swagger.PortfolioGetOpts{
+		BrokerAccountId: optional{acc},
+	}
 
-	body, err := pfApi.PortfolioGet(nil, nil)
+	body, err := pfApi.PortfolioGet(nil, opts)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -147,14 +150,18 @@ func (c *MyClient) RequestPortfolio() schema.PortfolioResponse {
 	return pfResp
 }
 
-func (c *MyClient) RequestOperations(start time.Time) schema.OperationsResponse {
+func (c *MyClient) RequestOperations(start time.Time, acc string) schema.OperationsResponse {
 	timeStartStr := start.Format(time.RFC3339)
 	timeNow := time.Now()
 
 	opsApi := c.getAPI().OperationsApi
 	opsResp := schema.OperationsResponse{}
+	opts := &swagger.OperationsGetOpts{
+		Figi:            optional{},
+		BrokerAccountId: optional{acc},
+	}
 
-	body, err := opsApi.OperationsGet(nil, timeStartStr, timeNow.Format(time.RFC3339), nil)
+	body, err := opsApi.OperationsGet(nil, timeStartStr, timeNow.Format(time.RFC3339), opts)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -193,6 +200,25 @@ func (c *MyClient) RequestCandles(figi string, t1, t2 time.Time, interval string
 	return mktResp
 }
 
-func (c *MyClient) Stop() {
+func (c *MyClient) RequestAccounts() schema.AccountsResponse {
+	userApi := c.getAPI().UserApi
+	accResp := schema.AccountsResponse{}
 
+	body, err := userApi.UserAccountsGet(nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err = json.Unmarshal(body, &accResp)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	//log.Print(string(body))
+	//log.Print(accResp)
+
+	return accResp
+}
+
+func (c *MyClient) Stop() {
 }

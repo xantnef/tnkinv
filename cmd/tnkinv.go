@@ -12,7 +12,7 @@ import (
 )
 
 type config struct {
-	token, period, format string
+	token, period, format, acc string
 
 	start, at time.Time
 }
@@ -41,6 +41,7 @@ func parseCmdline() (string, config) {
 	fs := flag.NewFlagSet("", flag.ExitOnError)
 	token := fs.String("token", "", "API token")
 	format := fs.String("format", "human", "output format")
+	acc := fs.String("account", "broker", "account")
 
 	period := fs.String("period", "month", "story period")
 	start := fs.String("start", "", "starting point in time (format: 1922/12/28; default: year ago)")
@@ -50,7 +51,25 @@ func parseCmdline() (string, config) {
 
 	cfg.token = *token
 	cfg.period = *period
+
+	formats := map[string]bool{
+		"human": true,
+		"table": true,
+	}
+	if !formats[*format] {
+		log.Fatalf("bad format %s", *format)
+	}
 	cfg.format = *format
+
+	accs := map[string]bool{
+		"broker": true,
+		"iis":    true,
+		"all":    true,
+	}
+	if !accs[*acc] {
+		log.Fatalf("bad account type %s", *acc)
+	}
+	cfg.acc = *acc
 
 	if *start != "" {
 		var err error
@@ -77,6 +96,7 @@ func usage() {
 	fmt.Printf("usage:\n" +
 		"\t tnkinv {subcmd} [params] --token file_with_token \n" +
 		"\t   common params: \n" +
+		"\t     --account broker|iis|all \n" +
 		"\t     --format human|table \n" +
 		"\t   subcmds: \n" +
 		"\t     show   [--at 1922/12/28 (default: today)] \n" +
@@ -85,6 +105,20 @@ func usage() {
 		"\t     deals  [--start 1901/01/01 (default: none)] \n" +
 		"\t            [--period day|week|month|all (default: month)] \n" +
 		"\t     sandbox \n")
+}
+
+func getAccountIds(c *client.MyClient, accType string) (accIds []string) {
+	if accType == "broker" {
+		accIds = append(accIds, "")
+		return
+	}
+
+	for _, acc := range c.RequestAccounts().Payload.Accounts {
+		if accType == "all" || acc.BrokerAccountType == "TinkoffIis" {
+			accIds = append(accIds, acc.BrokerAccountID)
+		}
+	}
+	return
 }
 
 func main() {
@@ -102,7 +136,8 @@ func main() {
 		return
 	}
 
-	port := portfolio.NewPortfolio(client.NewClient(cfg.token))
+	c := client.NewClient(cfg.token)
+	port := portfolio.NewPortfolio(c, getAccountIds(c, cfg.acc))
 
 	if cmd == "show" {
 		if cfg.at.IsZero() {

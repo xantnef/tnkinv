@@ -10,7 +10,7 @@ Method | HTTP request | Description
 
 
 # **OrdersCancelPost**
-> OrdersCancelPost(ctx, orderId)
+> OrdersCancelPost(ctx, orderId, optional)
 Отмена заявки
 
 ### Required Parameters
@@ -19,6 +19,15 @@ Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
  **ctx** | **context.Context** | context for authentication, logging, cancellation, deadlines, tracing, etc.
   **orderId** | [**interface{}**](.md)| ID заявки | 
+ **optional** | ***OrdersCancelPostOpts** | optional parameters | nil if no parameters
+
+### Optional Parameters
+Optional parameters are passed through a pointer to a OrdersCancelPostOpts struct
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+
+ **brokerAccountId** | [**optional.Interface of interface{}**](.md)| Номер счета (по умолчанию - Тинькофф) | 
 
 ### Return type
 
@@ -36,11 +45,22 @@ No authorization required
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **OrdersGet**
-> OrdersGet(ctx, )
+> OrdersGet(ctx, optional)
 Получение списка активных заявок
 
 ### Required Parameters
-This endpoint does not need any parameter.
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **ctx** | **context.Context** | context for authentication, logging, cancellation, deadlines, tracing, etc.
+ **optional** | ***OrdersGetOpts** | optional parameters | nil if no parameters
+
+### Optional Parameters
+Optional parameters are passed through a pointer to a OrdersGetOpts struct
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **brokerAccountId** | [**optional.Interface of interface{}**](.md)| Номер счета (по умолчанию - Тинькофф) | 
 
 ### Return type
 
@@ -58,7 +78,7 @@ No authorization required
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **OrdersLimitOrderPost**
-> OrdersLimitOrderPost(ctx, figi)
+> OrdersLimitOrderPost(ctx, figi, optional)
 Создание лимитной заявки
 
 ### Required Parameters
@@ -67,6 +87,15 @@ Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
  **ctx** | **context.Context** | context for authentication, logging, cancellation, deadlines, tracing, etc.
   **figi** | [**interface{}**](.md)| FIGI инструмента | 
+ **optional** | ***OrdersLimitOrderPostOpts** | optional parameters | nil if no parameters
+
+### Optional Parameters
+Optional parameters are passed through a pointer to a OrdersLimitOrderPostOpts struct
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+
+ **brokerAccountId** | [**optional.Interface of interface{}**](.md)| Номер счета (по умолчанию - Тинькофф) | 
 
 ### Return type
 

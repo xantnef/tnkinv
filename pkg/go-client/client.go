@@ -55,6 +55,8 @@ type APIClient struct {
 	PortfolioApi *PortfolioApiService
 
 	SandboxApi *SandboxApiService
+
+	UserApi *UserApiService
 }
 
 type service struct {
@@ -78,6 +80,7 @@ func NewAPIClient(cfg *Configuration) *APIClient {
 	c.OrdersApi = (*OrdersApiService)(&c.common)
 	c.PortfolioApi = (*PortfolioApiService)(&c.common)
 	c.SandboxApi = (*SandboxApiService)(&c.common)
+	c.UserApi = (*UserApiService)(&c.common)
 
 	return c
 }

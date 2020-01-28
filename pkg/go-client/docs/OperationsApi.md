@@ -28,6 +28,7 @@ Name | Type | Description  | Notes
 
 
  **figi** | [**optional.Interface of interface{}**](.md)| Figi инструмента для фильтрации | 
+ **brokerAccountId** | [**optional.Interface of interface{}**](.md)| Номер счета (по умолчанию - Тинькофф) | 
 
 ### Return type
 

@@ -13,6 +13,7 @@ package swagger
 import (
 	"context"
 	"io/ioutil"
+	"net/http"
 	"net/url"
 	"strings"
 )
@@ -22,31 +23,15 @@ var (
 	_ context.Context
 )
 
-type OperationsApiService service
+type UserApiService service
 
 /*
-OperationsApiService Получение списка операций
+UserApiService Получение брокерских счетов клиента
  * @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
- * @param from Начало временного промежутка
- * @param to Конец временного промежутка
- * @param optional nil or *OperationsGetOpts - Optional Parameters:
-     * @param "Figi" (optional.Interface of interface{}) -  Figi инструмента для фильтрации
-     * @param "BrokerAccountId" (optional.Interface of interface{}) -  Номер счета (по умолчанию - Тинькофф)
 
 
 */
-
-type optionalInterface interface {
-	IsSet() bool
-	Value() error
-}
-
-type OperationsGetOpts struct {
-	//Figi optional.Interface
-	Figi optionalInterface
-}
-
-func (a *OperationsApiService) OperationsGet(ctx context.Context, from interface{}, to interface{}, localVarOptionals *OperationsGetOpts) ([]byte, error) {
+func (a *UserApiService) UserAccountsGet(ctx context.Context) (*http.Response, error) {
 	var (
 		localVarHttpMethod = strings.ToUpper("Get")
 		localVarPostBody   interface{}
@@ -55,20 +40,12 @@ func (a *OperationsApiService) OperationsGet(ctx context.Context, from interface
 	)
 
 	// create path and map variables
-	localVarPath := a.client.cfg.BasePath + "/operations"
+	localVarPath := a.client.cfg.BasePath + "/user/accounts"
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
 	localVarFormParams := url.Values{}
 
-	localVarQueryParams.Add("from", parameterToString(from, ""))
-	localVarQueryParams.Add("to", parameterToString(to, ""))
-	if localVarOptionals != nil && localVarOptionals.Figi.IsSet() {
-		localVarQueryParams.Add("figi", parameterToString(localVarOptionals.Figi.Value(), ""))
-	}
-	if localVarOptionals != nil && localVarOptionals.BrokerAccountId.IsSet() {
-		localVarQueryParams.Add("brokerAccountId", parameterToString(localVarOptionals.BrokerAccountId.Value(), ""))
-	}
 	// to determine the Content-Type header
 	localVarHttpContentTypes := []string{}
 
@@ -93,13 +70,13 @@ func (a *OperationsApiService) OperationsGet(ctx context.Context, from interface
 
 	localVarHttpResponse, err := a.client.callAPI(r)
 	if err != nil || localVarHttpResponse == nil {
-		return nil, err
+		return localVarHttpResponse, err
 	}
 
 	localVarBody, err := ioutil.ReadAll(localVarHttpResponse.Body)
 	localVarHttpResponse.Body.Close()
 	if err != nil {
-		return nil, err
+		return localVarHttpResponse, err
 	}
 
 	if localVarHttpResponse.StatusCode >= 300 {
@@ -108,8 +85,8 @@ func (a *OperationsApiService) OperationsGet(ctx context.Context, from interface
 			error: localVarHttpResponse.Status,
 		}
 
-		return nil, newErr
+		return localVarHttpResponse, newErr
 	}
 
-	return localVarBody, nil
+	return localVarHttpResponse, nil
 }

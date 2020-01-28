@@ -29,10 +29,17 @@ type SandboxApiService service
 SandboxApiService Удаление всех позиций
 Удаление всех позиций клиента
  * @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ * @param optional nil or *SandboxClearPostOpts - Optional Parameters:
+     * @param "BrokerAccountId" (optional.Interface of interface{}) -  Номер счета (по умолчанию - Тинькофф)
 
 
 */
-func (a *SandboxApiService) SandboxClearPost(ctx context.Context) (*http.Response, error) {
+
+type SandboxClearPostOpts struct {
+	BrokerAccountId optional.Interface
+}
+
+func (a *SandboxApiService) SandboxClearPost(ctx context.Context, localVarOptionals *SandboxClearPostOpts) (*http.Response, error) {
 	var (
 		localVarHttpMethod = strings.ToUpper("Post")
 		localVarPostBody   interface{}
@@ -47,6 +54,9 @@ func (a *SandboxApiService) SandboxClearPost(ctx context.Context) (*http.Respons
 	localVarQueryParams := url.Values{}
 	localVarFormParams := url.Values{}
 
+	if localVarOptionals != nil && localVarOptionals.BrokerAccountId.IsSet() {
+		localVarQueryParams.Add("brokerAccountId", parameterToString(localVarOptionals.BrokerAccountId.Value(), ""))
+	}
 	// to determine the Content-Type header
 	localVarHttpContentTypes := []string{}
 
@@ -95,10 +105,17 @@ func (a *SandboxApiService) SandboxClearPost(ctx context.Context) (*http.Respons
 /*
 SandboxApiService Выставление баланса по валютным позициям
  * @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ * @param optional nil or *SandboxCurrenciesBalancePostOpts - Optional Parameters:
+     * @param "BrokerAccountId" (optional.Interface of interface{}) -  Номер счета (по умолчанию - Тинькофф)
 
 
 */
-func (a *SandboxApiService) SandboxCurrenciesBalancePost(ctx context.Context) (*http.Response, error) {
+
+type SandboxCurrenciesBalancePostOpts struct {
+	BrokerAccountId optional.Interface
+}
+
+func (a *SandboxApiService) SandboxCurrenciesBalancePost(ctx context.Context, localVarOptionals *SandboxCurrenciesBalancePostOpts) (*http.Response, error) {
 	var (
 		localVarHttpMethod = strings.ToUpper("Post")
 		localVarPostBody   interface{}
@@ -113,6 +130,9 @@ func (a *SandboxApiService) SandboxCurrenciesBalancePost(ctx context.Context) (*
 	localVarQueryParams := url.Values{}
 	localVarFormParams := url.Values{}
 
+	if localVarOptionals != nil && localVarOptionals.BrokerAccountId.IsSet() {
+		localVarQueryParams.Add("brokerAccountId", parameterToString(localVarOptionals.BrokerAccountId.Value(), ""))
+	}
 	// to determine the Content-Type header
 	localVarHttpContentTypes := []string{}
 
@@ -161,10 +181,17 @@ func (a *SandboxApiService) SandboxCurrenciesBalancePost(ctx context.Context) (*
 /*
 SandboxApiService Выставление баланса по инструментным позициям
  * @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ * @param optional nil or *SandboxPositionsBalancePostOpts - Optional Parameters:
+     * @param "BrokerAccountId" (optional.Interface of interface{}) -  Номер счета (по умолчанию - Тинькофф)
 
 
 */
-func (a *SandboxApiService) SandboxPositionsBalancePost(ctx context.Context) (*http.Response, error) {
+
+type SandboxPositionsBalancePostOpts struct {
+	BrokerAccountId optional.Interface
+}
+
+func (a *SandboxApiService) SandboxPositionsBalancePost(ctx context.Context, localVarOptionals *SandboxPositionsBalancePostOpts) (*http.Response, error) {
 	var (
 		localVarHttpMethod = strings.ToUpper("Post")
 		localVarPostBody   interface{}
@@ -174,6 +201,76 @@ func (a *SandboxApiService) SandboxPositionsBalancePost(ctx context.Context) (*h
 
 	// create path and map variables
 	localVarPath := a.client.cfg.BasePath + "/sandbox/positions/balance"
+
+	localVarHeaderParams := make(map[string]string)
+	localVarQueryParams := url.Values{}
+	localVarFormParams := url.Values{}
+
+	if localVarOptionals != nil && localVarOptionals.BrokerAccountId.IsSet() {
+		localVarQueryParams.Add("brokerAccountId", parameterToString(localVarOptionals.BrokerAccountId.Value(), ""))
+	}
+	// to determine the Content-Type header
+	localVarHttpContentTypes := []string{}
+
+	// set Content-Type header
+	localVarHttpContentType := selectHeaderContentType(localVarHttpContentTypes)
+	if localVarHttpContentType != "" {
+		localVarHeaderParams["Content-Type"] = localVarHttpContentType
+	}
+
+	// to determine the Accept header
+	localVarHttpHeaderAccepts := []string{}
+
+	// set Accept header
+	localVarHttpHeaderAccept := selectHeaderAccept(localVarHttpHeaderAccepts)
+	if localVarHttpHeaderAccept != "" {
+		localVarHeaderParams["Accept"] = localVarHttpHeaderAccept
+	}
+	r, err := a.client.prepareRequest(ctx, localVarPath, localVarHttpMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, localVarFileName, localVarFileBytes)
+	if err != nil {
+		return nil, err
+	}
+
+	localVarHttpResponse, err := a.client.callAPI(r)
+	if err != nil || localVarHttpResponse == nil {
+		return localVarHttpResponse, err
+	}
+
+	localVarBody, err := ioutil.ReadAll(localVarHttpResponse.Body)
+	localVarHttpResponse.Body.Close()
+	if err != nil {
+		return localVarHttpResponse, err
+	}
+
+	if localVarHttpResponse.StatusCode >= 300 {
+		newErr := GenericSwaggerError{
+			body:  localVarBody,
+			error: localVarHttpResponse.Status,
+		}
+
+		return localVarHttpResponse, newErr
+	}
+
+	return localVarHttpResponse, nil
+}
+
+/*
+SandboxApiService Регистрация клиента в sandbox
+Создание счета и валютных позиций для клиента
+ * @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+
+
+*/
+func (a *SandboxApiService) SandboxRegisterPost(ctx context.Context) (*http.Response, error) {
+	var (
+		localVarHttpMethod = strings.ToUpper("Post")
+		localVarPostBody   interface{}
+		localVarFileName   string
+		localVarFileBytes  []byte
+	)
+
+	// create path and map variables
+	localVarPath := a.client.cfg.BasePath + "/sandbox/register"
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
@@ -225,13 +322,20 @@ func (a *SandboxApiService) SandboxPositionsBalancePost(ctx context.Context) (*h
 }
 
 /*
-SandboxApiService Регистрация клиента в sandbox
-Создание валютные позиций для клиента
+SandboxApiService Удаление счета
+Удаление счета клиента
  * @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ * @param optional nil or *SandboxRemovePostOpts - Optional Parameters:
+     * @param "BrokerAccountId" (optional.Interface of interface{}) -  Номер счета (по умолчанию - Тинькофф)
 
 
 */
-func (a *SandboxApiService) SandboxRegisterPost(ctx context.Context) (*http.Response, error) {
+
+type SandboxRemovePostOpts struct {
+	BrokerAccountId optional.Interface
+}
+
+func (a *SandboxApiService) SandboxRemovePost(ctx context.Context, localVarOptionals *SandboxRemovePostOpts) (*http.Response, error) {
 	var (
 		localVarHttpMethod = strings.ToUpper("Post")
 		localVarPostBody   interface{}
@@ -240,12 +344,15 @@ func (a *SandboxApiService) SandboxRegisterPost(ctx context.Context) (*http.Resp
 	)
 
 	// create path and map variables
-	localVarPath := a.client.cfg.BasePath + "/sandbox/register"
+	localVarPath := a.client.cfg.BasePath + "/sandbox/remove"
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
 	localVarFormParams := url.Values{}
 
+	if localVarOptionals != nil && localVarOptionals.BrokerAccountId.IsSet() {
+		localVarQueryParams.Add("brokerAccountId", parameterToString(localVarOptionals.BrokerAccountId.Value(), ""))
+	}
 	// to determine the Content-Type header
 	localVarHttpContentTypes := []string{}
 

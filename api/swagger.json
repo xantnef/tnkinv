@@ -29,6 +29,10 @@
     {
       "name": "operations",
       "description": "Получении информации по операциям"
+    },
+    {
+      "name": "user",
+      "description": "Получении информации по брокерским счетам"
     }
   ],
   "paths": {
@@ -38,7 +42,7 @@
           "sandbox"
         ],
         "summary": "Регистрация клиента в sandbox",
-        "description": "Создание валютные позиций для клиента",
+        "description": "Создание счета и валютных позиций для клиента",
         "security": [
           {
             "sso_auth": [
@@ -46,13 +50,24 @@
             ]
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SandboxRegisterRequest"
+              }
+            }
+          },
+          "description": "Запрос на создание счета и выставление баланса по валютным позициям",
+          "required": false
+        },
         "responses": {
           "200": {
             "description": "Успешный ответ",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Empty"
+                  "$ref": "#/components/schemas/SandboxRegisterResponse"
                 }
               }
             }
@@ -81,6 +96,17 @@
             "sso_auth": [
 
             ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "brokerAccountId",
+            "in": "query",
+            "required": false,
+            "description": "Номер счета (по умолчанию - Тинькофф)",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "requestBody": {
@@ -131,6 +157,17 @@
             ]
           }
         ],
+        "parameters": [
+          {
+            "name": "brokerAccountId",
+            "in": "query",
+            "required": false,
+            "description": "Номер счета (по умолчанию - Тинькофф)",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -142,6 +179,55 @@
           "description": "Запрос на выставление баланса по инструментным позициям",
           "required": true
         },
+        "responses": {
+          "200": {
+            "description": "Успешный ответ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Empty"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Ошибка запроса",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sandbox/remove": {
+      "post": {
+        "tags": [
+          "sandbox"
+        ],
+        "summary": "Удаление счета",
+        "description": "Удаление счета клиента",
+        "security": [
+          {
+            "sso_auth": [
+
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "brokerAccountId",
+            "in": "query",
+            "required": false,
+            "description": "Номер счета (по умолчанию - Тинькофф)",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Успешный ответ",
@@ -180,6 +266,17 @@
             ]
           }
         ],
+        "parameters": [
+          {
+            "name": "brokerAccountId",
+            "in": "query",
+            "required": false,
+            "description": "Номер счета (по умолчанию - Тинькофф)",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Успешный ответ",
@@ -215,6 +312,17 @@
             "sso_auth": [
 
             ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "brokerAccountId",
+            "in": "query",
+            "required": false,
+            "description": "Номер счета (по умолчанию - Тинькофф)",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -260,6 +368,15 @@
             "in": "query",
             "required": true,
             "description": "FIGI инструмента",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "brokerAccountId",
+            "in": "query",
+            "required": false,
+            "description": "Номер счета (по умолчанию - Тинькофф)",
             "schema": {
               "type": "string"
             }
@@ -321,17 +438,17 @@
             "schema": {
               "type": "string"
             }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/Empty"
-              }
+          },
+          {
+            "name": "brokerAccountId",
+            "in": "query",
+            "required": false,
+            "description": "Номер счета (по умолчанию - Тинькофф)",
+            "schema": {
+              "type": "string"
             }
           }
-        },
+        ],
         "responses": {
           "200": {
             "description": "Успешный ответ",
@@ -402,6 +519,15 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "brokerAccountId",
+            "in": "query",
+            "required": false,
+            "description": "Номер счета (по умолчанию - Тинькофф)",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -441,6 +567,17 @@
             ]
           }
         ],
+        "parameters": [
+          {
+            "name": "brokerAccountId",
+            "in": "query",
+            "required": false,
+            "description": "Номер счета (по умолчанию - Тинькофф)",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Успешный ответ",
@@ -453,7 +590,7 @@
             }
           },
           "500": {
-            "description": "Инструмент не найден",
+            "description": "Брокерский счет не найден",
             "content": {
               "application/json": {
                 "schema": {
@@ -478,6 +615,17 @@
             ]
           }
         ],
+        "parameters": [
+          {
+            "name": "brokerAccountId",
+            "in": "query",
+            "required": false,
+            "description": "Номер счета (по умолчанию - Тинькофф)",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Успешный ответ",
@@ -490,7 +638,44 @@
             }
           },
           "500": {
-            "description": "Инструмент не найден",
+            "description": "Брокерский счет не найден",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/user/accounts": {
+      "get": {
+        "tags": [
+          "user"
+        ],
+        "summary": "Получение брокерских счетов клиента",
+        "security": [
+          {
+            "sso_auth": [
+
+            ]
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Успешный ответ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserAccountsResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Брокерский счет не найден",
             "content": {
               "application/json": {
                 "schema": {
@@ -819,7 +1004,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/MarketInstrumentResponse"
+                  "$ref": "#/components/schemas/SearchMarketInstrumentResponse"
                 }
               }
             }
@@ -867,7 +1052,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/MarketInstrumentListResponse"
+                  "$ref": "#/components/schemas/SearchMarketInstrumentResponse"
                 }
               }
             }
@@ -990,6 +1175,55 @@
           }
         }
       },
+      "UserAccountsResponse": {
+        "type": "object",
+        "required": [
+          "trackingId",
+          "payload",
+          "status"
+        ],
+        "properties": {
+          "trackingId": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "default": "Ok"
+          },
+          "payload": {
+            "$ref": "#/components/schemas/UserAccounts"
+          }
+        }
+      },
+      "UserAccounts": {
+        "type": "object",
+        "required": [
+          "accounts"
+        ],
+        "properties": {
+          "accounts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UserAccount"
+            }
+          }
+        }
+      },
+      "UserAccount": {
+        "type": "object",
+        "required": [
+          "brokerAccountType",
+          "brokerAccountId"
+        ],
+        "properties": {
+          "brokerAccountType": {
+            "$ref": "#/components/schemas/BrokerAccountType"
+          },
+          "brokerAccountId": {
+            "type": "string"
+          }
+        }
+      },
       "PortfolioCurrenciesResponse": {
         "type": "object",
         "required": [
@@ -1050,7 +1284,8 @@
           "figi",
           "balance",
           "instrumentType",
-          "lots"
+          "lots",
+          "name"
         ],
         "properties": {
           "figi": {
@@ -1073,18 +1308,21 @@
             "type": "number",
             "format": "double"
           },
+          "expectedYield": {
+            "$ref": "#/components/schemas/MoneyAmount"
+          },
           "lots": {
             "type": "integer",
             "format": "int32"
-          },
-          "expectedYield": {
-            "$ref": "#/components/schemas/MoneyAmount"
           },
           "averagePositionPrice": {
             "$ref": "#/components/schemas/MoneyAmount"
           },
           "averagePositionPriceNoNkd": {
             "$ref": "#/components/schemas/MoneyAmount"
+          },
+          "name": {
+            "type": "string"
           }
         }
       },
@@ -1159,7 +1397,13 @@
           },
           "minPriceIncrement": {
             "type": "number",
-            "format": "double"
+            "format": "double",
+            "description": "Шаг цены"
+          },
+          "faceValue": {
+            "type": "number",
+            "format": "double",
+            "description": "Номинал для облигаций"
           },
           "lastPrice": {
             "type": "number",
@@ -1171,11 +1415,13 @@
           },
           "limitUp": {
             "type": "number",
-            "format": "double"
+            "format": "double",
+            "description": "Верхняя граница цены"
           },
           "limitDown": {
             "type": "number",
-            "format": "double"
+            "format": "double",
+            "description": "Нижняя граница цены"
           }
         }
       },
@@ -1284,23 +1530,6 @@
             "example": "2019-08-19T18:38:33.131642+03:00"
           }
         }
-      },
-      "CandleResolution": {
-        "description": "Интервал свечи и допустимый промежуток запроса:\n- 1min [1 minute, 1 day]\n- 2min [2 minutes, 1 day]\n- 3min [3 minutes, 1 day]\n- 5min [5 minutes, 1 day]\n- 10min [10 minutes, 1 day]\n- 15min [15 minutes, 1 day]\n- 30min [30 minutes, 1 day]\n- hour [1 hour, 7 days]\n- day [1 day, 1 year]\n- week [7 days, 2 years]\n- month [1 month, 10 years]\n",
-        "type": "string",
-        "enum": [
-          "1min",
-          "2min",
-          "3min",
-          "5min",
-          "10min",
-          "15min",
-          "30min",
-          "hour",
-          "day",
-          "week",
-          "month"
-        ]
       },
       "OperationsResponse": {
         "type": "object",
@@ -1553,6 +1782,10 @@
           "rejectReason": {
             "type": "string"
           },
+          "message": {
+            "description": "Сообщение об ошибке",
+            "type": "string"
+          },
           "requestedLots": {
             "type": "integer"
           },
@@ -1582,6 +1815,7 @@
         "type": "string",
         "enum": [
           "Buy",
+          "BuyCard",
           "Sell",
           "BrokerCommission",
           "ExchangeCommission",
@@ -1612,6 +1846,23 @@
           "Progress"
         ]
       },
+      "CandleResolution": {
+        "description": "Интервал свечи и допустимый промежуток запроса:\n- 1min [1 minute, 1 day]\n- 2min [2 minutes, 1 day]\n- 3min [3 minutes, 1 day]\n- 5min [5 minutes, 1 day]\n- 10min [10 minutes, 1 day]\n- 15min [15 minutes, 1 day]\n- 30min [30 minutes, 1 day]\n- hour [1 hour, 7 days]\n- day [1 day, 1 year]\n- week [7 days, 2 years]\n- month [1 month, 10 years]\n",
+        "type": "string",
+        "enum": [
+          "1min",
+          "2min",
+          "3min",
+          "5min",
+          "10min",
+          "15min",
+          "30min",
+          "hour",
+          "day",
+          "week",
+          "month"
+        ]
+      },
       "OrderStatus": {
         "description": "Статус заявки",
         "type": "string",
@@ -1634,6 +1885,49 @@
           "Limit",
           "Market"
         ]
+      },
+      "SandboxRegisterRequest": {
+        "type": "object",
+        "properties": {
+          "brokerAccountType": {
+            "$ref": "#/components/schemas/BrokerAccountType"
+          }
+        }
+      },
+      "SandboxRegisterResponse": {
+        "type": "object",
+        "required": [
+          "trackingId",
+          "payload",
+          "status"
+        ],
+        "properties": {
+          "trackingId": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "default": "Ok"
+          },
+          "payload": {
+            "$ref": "#/components/schemas/SandboxAccount"
+          }
+        }
+      },
+      "SandboxAccount": {
+        "type": "object",
+        "required": [
+          "brokerAccountType",
+          "brokerAccountId"
+        ],
+        "properties": {
+          "brokerAccountType": {
+            "$ref": "#/components/schemas/BrokerAccountType"
+          },
+          "brokerAccountId": {
+            "type": "string"
+          }
+        }
       },
       "SandboxSetCurrencyBalanceRequest": {
         "type": "object",
@@ -1706,6 +2000,26 @@
           }
         }
       },
+      "SearchMarketInstrumentResponse": {
+        "type": "object",
+        "required": [
+          "trackingId",
+          "payload",
+          "status"
+        ],
+        "properties": {
+          "trackingId": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "default": "Ok"
+          },
+          "payload": {
+            "$ref": "#/components/schemas/SearchMarketInstrument"
+          }
+        }
+      },
       "MarketInstrumentResponse": {
         "type": "object",
         "required": [
@@ -1723,6 +2037,45 @@
           },
           "payload": {
             "$ref": "#/components/schemas/MarketInstrument"
+          }
+        }
+      },
+      "SearchMarketInstrument": {
+        "type": "object",
+        "required": [
+          "figi",
+          "ticker",
+          "lot",
+          "name",
+          "type"
+        ],
+        "properties": {
+          "figi": {
+            "type": "string"
+          },
+          "ticker": {
+            "type": "string"
+          },
+          "isin": {
+            "type": "string"
+          },
+          "minPriceIncrement": {
+            "type": "number",
+            "format": "double",
+            "description": "Шаг цены"
+          },
+          "lot": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "$ref": "#/components/schemas/InstrumentType"
           }
         }
       },
@@ -1746,7 +2099,8 @@
           },
           "minPriceIncrement": {
             "type": "number",
-            "format": "double"
+            "format": "double",
+            "description": "Шаг цены"
           },
           "lot": {
             "type": "integer",
@@ -1783,6 +2137,13 @@
           "Currency",
           "Bond",
           "Etf"
+        ]
+      },
+      "BrokerAccountType": {
+        "type": "string",
+        "enum": [
+          "Tinkoff",
+          "TinkoffIis"
         ]
       }
     }

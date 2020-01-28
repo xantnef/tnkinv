@@ -29,10 +29,17 @@ type OrdersApiService service
 OrdersApiService Отмена заявки
  * @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
  * @param orderId ID заявки
+ * @param optional nil or *OrdersCancelPostOpts - Optional Parameters:
+     * @param "BrokerAccountId" (optional.Interface of interface{}) -  Номер счета (по умолчанию - Тинькофф)
 
 
 */
-func (a *OrdersApiService) OrdersCancelPost(ctx context.Context, orderId interface{}) (*http.Response, error) {
+
+type OrdersCancelPostOpts struct {
+	BrokerAccountId optional.Interface
+}
+
+func (a *OrdersApiService) OrdersCancelPost(ctx context.Context, orderId interface{}, localVarOptionals *OrdersCancelPostOpts) (*http.Response, error) {
 	var (
 		localVarHttpMethod = strings.ToUpper("Post")
 		localVarPostBody   interface{}
@@ -48,6 +55,9 @@ func (a *OrdersApiService) OrdersCancelPost(ctx context.Context, orderId interfa
 	localVarFormParams := url.Values{}
 
 	localVarQueryParams.Add("orderId", parameterToString(orderId, ""))
+	if localVarOptionals != nil && localVarOptionals.BrokerAccountId.IsSet() {
+		localVarQueryParams.Add("brokerAccountId", parameterToString(localVarOptionals.BrokerAccountId.Value(), ""))
+	}
 	// to determine the Content-Type header
 	localVarHttpContentTypes := []string{}
 
@@ -96,10 +106,17 @@ func (a *OrdersApiService) OrdersCancelPost(ctx context.Context, orderId interfa
 /*
 OrdersApiService Получение списка активных заявок
  * @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ * @param optional nil or *OrdersGetOpts - Optional Parameters:
+     * @param "BrokerAccountId" (optional.Interface of interface{}) -  Номер счета (по умолчанию - Тинькофф)
 
 
 */
-func (a *OrdersApiService) OrdersGet(ctx context.Context) (*http.Response, error) {
+
+type OrdersGetOpts struct {
+	BrokerAccountId optional.Interface
+}
+
+func (a *OrdersApiService) OrdersGet(ctx context.Context, localVarOptionals *OrdersGetOpts) (*http.Response, error) {
 	var (
 		localVarHttpMethod = strings.ToUpper("Get")
 		localVarPostBody   interface{}
@@ -114,6 +131,9 @@ func (a *OrdersApiService) OrdersGet(ctx context.Context) (*http.Response, error
 	localVarQueryParams := url.Values{}
 	localVarFormParams := url.Values{}
 
+	if localVarOptionals != nil && localVarOptionals.BrokerAccountId.IsSet() {
+		localVarQueryParams.Add("brokerAccountId", parameterToString(localVarOptionals.BrokerAccountId.Value(), ""))
+	}
 	// to determine the Content-Type header
 	localVarHttpContentTypes := []string{}
 
@@ -163,10 +183,17 @@ func (a *OrdersApiService) OrdersGet(ctx context.Context) (*http.Response, error
 OrdersApiService Создание лимитной заявки
  * @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
  * @param figi FIGI инструмента
+ * @param optional nil or *OrdersLimitOrderPostOpts - Optional Parameters:
+     * @param "BrokerAccountId" (optional.Interface of interface{}) -  Номер счета (по умолчанию - Тинькофф)
 
 
 */
-func (a *OrdersApiService) OrdersLimitOrderPost(ctx context.Context, figi interface{}) (*http.Response, error) {
+
+type OrdersLimitOrderPostOpts struct {
+	BrokerAccountId optional.Interface
+}
+
+func (a *OrdersApiService) OrdersLimitOrderPost(ctx context.Context, figi interface{}, localVarOptionals *OrdersLimitOrderPostOpts) (*http.Response, error) {
 	var (
 		localVarHttpMethod = strings.ToUpper("Post")
 		localVarPostBody   interface{}
@@ -182,6 +209,9 @@ func (a *OrdersApiService) OrdersLimitOrderPost(ctx context.Context, figi interf
 	localVarFormParams := url.Values{}
 
 	localVarQueryParams.Add("figi", parameterToString(figi, ""))
+	if localVarOptionals != nil && localVarOptionals.BrokerAccountId.IsSet() {
+		localVarQueryParams.Add("brokerAccountId", parameterToString(localVarOptionals.BrokerAccountId.Value(), ""))
+	}
 	// to determine the Content-Type header
 	localVarHttpContentTypes := []string{}
 

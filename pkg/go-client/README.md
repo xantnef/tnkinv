@@ -39,6 +39,8 @@ Class | Method | HTTP request | Description
 *SandboxApi* | [**SandboxCurrenciesBalancePost**](docs/SandboxApi.md#sandboxcurrenciesbalancepost) | **Post** /sandbox/currencies/balance | Выставление баланса по валютным позициям
 *SandboxApi* | [**SandboxPositionsBalancePost**](docs/SandboxApi.md#sandboxpositionsbalancepost) | **Post** /sandbox/positions/balance | Выставление баланса по инструментным позициям
 *SandboxApi* | [**SandboxRegisterPost**](docs/SandboxApi.md#sandboxregisterpost) | **Post** /sandbox/register | Регистрация клиента в sandbox
+*SandboxApi* | [**SandboxRemovePost**](docs/SandboxApi.md#sandboxremovepost) | **Post** /sandbox/remove | Удаление счета
+*UserApi* | [**UserAccountsGet**](docs/UserApi.md#useraccountsget) | **Get** /user/accounts | Получение брокерских счетов клиента
 
 
 ## Documentation For Models

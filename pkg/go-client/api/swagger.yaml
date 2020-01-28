@@ -18,18 +18,20 @@ tags:
   description: "Получении информации по бумагам"
 - name: "operations"
   description: "Получении информации по операциям"
+- name: "user"
+  description: "Получении информации по брокерским счетам"
 paths:
   /sandbox/register:
     post:
       tags:
       - "sandbox"
       summary: "Регистрация клиента в sandbox"
-      description: "Создание валютные позиций для клиента"
+      description: "Создание счета и валютных позиций для клиента"
       parameters: []
       responses:
-        200:
+        "200":
           description: "Успешный ответ"
-        500:
+        "500":
           description: "Ошибка запроса"
       security:
       - sso_auth: []
@@ -38,11 +40,16 @@ paths:
       tags:
       - "sandbox"
       summary: "Выставление баланса по валютным позициям"
-      parameters: []
+      parameters:
+      - name: "brokerAccountId"
+        in: "query"
+        description: "Номер счета (по умолчанию - Тинькофф)"
+        required: false
+        x-exportParamName: "BrokerAccountId"
       responses:
-        200:
+        "200":
           description: "Успешный ответ"
-        500:
+        "500":
           description: "Ошибка запроса"
       security:
       - sso_auth: []
@@ -51,11 +58,35 @@ paths:
       tags:
       - "sandbox"
       summary: "Выставление баланса по инструментным позициям"
-      parameters: []
+      parameters:
+      - name: "brokerAccountId"
+        in: "query"
+        description: "Номер счета (по умолчанию - Тинькофф)"
+        required: false
+        x-exportParamName: "BrokerAccountId"
       responses:
-        200:
+        "200":
           description: "Успешный ответ"
-        500:
+        "500":
+          description: "Ошибка запроса"
+      security:
+      - sso_auth: []
+  /sandbox/remove:
+    post:
+      tags:
+      - "sandbox"
+      summary: "Удаление счета"
+      description: "Удаление счета клиента"
+      parameters:
+      - name: "brokerAccountId"
+        in: "query"
+        description: "Номер счета (по умолчанию - Тинькофф)"
+        required: false
+        x-exportParamName: "BrokerAccountId"
+      responses:
+        "200":
+          description: "Успешный ответ"
+        "500":
           description: "Ошибка запроса"
       security:
       - sso_auth: []
@@ -65,11 +96,16 @@ paths:
       - "sandbox"
       summary: "Удаление всех позиций"
       description: "Удаление всех позиций клиента"
-      parameters: []
+      parameters:
+      - name: "brokerAccountId"
+        in: "query"
+        description: "Номер счета (по умолчанию - Тинькофф)"
+        required: false
+        x-exportParamName: "BrokerAccountId"
       responses:
-        200:
+        "200":
           description: "Успешный ответ"
-        500:
+        "500":
           description: "Ошибка запроса"
       security:
       - sso_auth: []
@@ -78,11 +114,16 @@ paths:
       tags:
       - "orders"
       summary: "Получение списка активных заявок"
-      parameters: []
+      parameters:
+      - name: "brokerAccountId"
+        in: "query"
+        description: "Номер счета (по умолчанию - Тинькофф)"
+        required: false
+        x-exportParamName: "BrokerAccountId"
       responses:
-        200:
+        "200":
           description: "Список заявок"
-        500:
+        "500":
           description: "Инструмент не найден"
       security:
       - sso_auth: []
@@ -97,10 +138,15 @@ paths:
         description: "FIGI инструмента"
         required: true
         x-exportParamName: "Figi"
+      - name: "brokerAccountId"
+        in: "query"
+        description: "Номер счета (по умолчанию - Тинькофф)"
+        required: false
+        x-exportParamName: "BrokerAccountId"
       responses:
-        200:
+        "200":
           description: "Созданная заявка"
-        500:
+        "500":
           description: "Ошибка запроса"
       security:
       - sso_auth: []
@@ -115,10 +161,15 @@ paths:
         description: "ID заявки"
         required: true
         x-exportParamName: "OrderId"
+      - name: "brokerAccountId"
+        in: "query"
+        description: "Номер счета (по умолчанию - Тинькофф)"
+        required: false
+        x-exportParamName: "BrokerAccountId"
       responses:
-        200:
+        "200":
           description: "Успешный ответ"
-        500:
+        "500":
           description: "Ошибка запроса"
       security:
       - sso_auth: []
@@ -143,10 +194,15 @@ paths:
         description: "Figi инструмента для фильтрации"
         required: false
         x-exportParamName: "Figi"
+      - name: "brokerAccountId"
+        in: "query"
+        description: "Номер счета (по умолчанию - Тинькофф)"
+        required: false
+        x-exportParamName: "BrokerAccountId"
       responses:
-        200:
+        "200":
           description: "Список операций"
-        500:
+        "500":
           description: "Брокерский счет не найден"
       security:
       - sso_auth: []
@@ -155,12 +211,17 @@ paths:
       tags:
       - "portfolio"
       summary: "Получение портфеля клиента"
-      parameters: []
+      parameters:
+      - name: "brokerAccountId"
+        in: "query"
+        description: "Номер счета (по умолчанию - Тинькофф)"
+        required: false
+        x-exportParamName: "BrokerAccountId"
       responses:
-        200:
+        "200":
           description: "Успешный ответ"
-        500:
-          description: "Инструмент не найден"
+        "500":
+          description: "Брокерский счет не найден"
       security:
       - sso_auth: []
   /portfolio/currencies:
@@ -168,12 +229,30 @@ paths:
       tags:
       - "portfolio"
       summary: "Получение валютных активов клиента"
+      parameters:
+      - name: "brokerAccountId"
+        in: "query"
+        description: "Номер счета (по умолчанию - Тинькофф)"
+        required: false
+        x-exportParamName: "BrokerAccountId"
+      responses:
+        "200":
+          description: "Успешный ответ"
+        "500":
+          description: "Брокерский счет не найден"
+      security:
+      - sso_auth: []
+  /user/accounts:
+    get:
+      tags:
+      - "user"
+      summary: "Получение брокерских счетов клиента"
       parameters: []
       responses:
-        200:
+        "200":
           description: "Успешный ответ"
-        500:
-          description: "Инструмент не найден"
+        "500":
+          description: "Брокерский счет не найден"
       security:
       - sso_auth: []
   /market/stocks:
@@ -183,9 +262,9 @@ paths:
       summary: "Получение списка акций"
       parameters: []
       responses:
-        200:
+        "200":
           description: "Успешный ответ"
-        500:
+        "500":
           description: "Инструмент не найден"
       security:
       - sso_auth: []
@@ -196,9 +275,9 @@ paths:
       summary: "Получение списка облигаций"
       parameters: []
       responses:
-        200:
+        "200":
           description: "Успешный ответ"
-        500:
+        "500":
           description: "Инструмент не найден"
       security:
       - sso_auth: []
@@ -209,9 +288,9 @@ paths:
       summary: "Получение списка ETF"
       parameters: []
       responses:
-        200:
+        "200":
           description: "Успешный ответ"
-        500:
+        "500":
           description: "Инструмент не найден"
       security:
       - sso_auth: []
@@ -222,9 +301,9 @@ paths:
       summary: "Получение списка валютных пар"
       parameters: []
       responses:
-        200:
+        "200":
           description: "Успешный ответ"
-        500:
+        "500":
           description: "Инструмент не найден"
       security:
       - sso_auth: []
@@ -245,9 +324,9 @@ paths:
         required: true
         x-exportParamName: "Depth"
       responses:
-        200:
+        "200":
           description: "Успешный ответ"
-        500:
+        "500":
           description: "Инструмент не найден"
       security:
       - sso_auth: []
@@ -278,9 +357,9 @@ paths:
         required: true
         x-exportParamName: "Interval"
       responses:
-        200:
+        "200":
           description: "Успешный ответ"
-        500:
+        "500":
           description: "Инструмент не найден"
       security:
       - sso_auth: []
@@ -296,9 +375,9 @@ paths:
         required: true
         x-exportParamName: "Figi"
       responses:
-        200:
+        "200":
           description: "Успешный ответ"
-        500:
+        "500":
           description: "Инструмент не найден"
       security:
       - sso_auth: []
@@ -314,9 +393,9 @@ paths:
         required: true
         x-exportParamName: "Ticker"
       responses:
-        200:
+        "200":
           description: "Успешный ответ"
-        500:
+        "500":
           description: "Инструмент не найден"
       security:
       - sso_auth: []

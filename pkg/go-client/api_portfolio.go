@@ -28,10 +28,17 @@ type PortfolioApiService service
 /*
 PortfolioApiService Получение валютных активов клиента
  * @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ * @param optional nil or *PortfolioCurrenciesGetOpts - Optional Parameters:
+     * @param "BrokerAccountId" (optional.Interface of interface{}) -  Номер счета (по умолчанию - Тинькофф)
 
 
 */
-func (a *PortfolioApiService) PortfolioCurrenciesGet(ctx context.Context) (*http.Response, error) {
+
+type PortfolioCurrenciesGetOpts struct {
+	BrokerAccountId optional.Interface
+}
+
+func (a *PortfolioApiService) PortfolioCurrenciesGet(ctx context.Context, localVarOptionals *PortfolioCurrenciesGetOpts) (*http.Response, error) {
 	var (
 		localVarHttpMethod = strings.ToUpper("Get")
 		localVarPostBody   interface{}
@@ -46,6 +53,9 @@ func (a *PortfolioApiService) PortfolioCurrenciesGet(ctx context.Context) (*http
 	localVarQueryParams := url.Values{}
 	localVarFormParams := url.Values{}
 
+	if localVarOptionals != nil && localVarOptionals.BrokerAccountId.IsSet() {
+		localVarQueryParams.Add("brokerAccountId", parameterToString(localVarOptionals.BrokerAccountId.Value(), ""))
+	}
 	// to determine the Content-Type header
 	localVarHttpContentTypes := []string{}
 
@@ -94,10 +104,17 @@ func (a *PortfolioApiService) PortfolioCurrenciesGet(ctx context.Context) (*http
 /*
 PortfolioApiService Получение портфеля клиента
  * @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ * @param optional nil or *PortfolioGetOpts - Optional Parameters:
+     * @param "BrokerAccountId" (optional.Interface of interface{}) -  Номер счета (по умолчанию - Тинькофф)
 
 
 */
-func (a *PortfolioApiService) PortfolioGet(ctx context.Context) ([]byte, error) {
+
+type PortfolioGetOpts struct {
+	BrokerAccountId optional.Interface
+}
+
+func (a *PortfolioApiService) PortfolioGet(ctx context.Context, localVarOptionals *PortfolioGetOpts) ([]byte, error) {
 	var (
 		localVarHttpMethod = strings.ToUpper("Get")
 		localVarPostBody   interface{}
@@ -112,6 +129,9 @@ func (a *PortfolioApiService) PortfolioGet(ctx context.Context) ([]byte, error) 
 	localVarQueryParams := url.Values{}
 	localVarFormParams := url.Values{}
 
+	if localVarOptionals != nil && localVarOptionals.BrokerAccountId.IsSet() {
+		localVarQueryParams.Add("brokerAccountId", parameterToString(localVarOptionals.BrokerAccountId.Value(), ""))
+	}
 	// to determine the Content-Type header
 	localVarHttpContentTypes := []string{}
 

@@ -36,14 +36,14 @@ OperationsApiService Получение списка операций
 
 */
 
-type optionalInterface interface {
+type OptionalInterface interface {
 	IsSet() bool
-	Value() error
+	Value() interface{}
 }
 
 type OperationsGetOpts struct {
 	//Figi optional.Interface
-	Figi optionalInterface
+	Figi, BrokerAccountId OptionalInterface
 }
 
 func (a *OperationsApiService) OperationsGet(ctx context.Context, from interface{}, to interface{}, localVarOptionals *OperationsGetOpts) ([]byte, error) {

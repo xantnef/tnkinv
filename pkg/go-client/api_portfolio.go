@@ -35,7 +35,7 @@ PortfolioApiService Получение валютных активов клие�
 */
 
 type PortfolioCurrenciesGetOpts struct {
-	BrokerAccountId optional.Interface
+	BrokerAccountId OptionalInterface
 }
 
 func (a *PortfolioApiService) PortfolioCurrenciesGet(ctx context.Context, localVarOptionals *PortfolioCurrenciesGetOpts) (*http.Response, error) {
@@ -111,7 +111,7 @@ PortfolioApiService Получение портфеля клиента
 */
 
 type PortfolioGetOpts struct {
-	BrokerAccountId optional.Interface
+	BrokerAccountId OptionalInterface
 }
 
 func (a *PortfolioApiService) PortfolioGet(ctx context.Context, localVarOptionals *PortfolioGetOpts) ([]byte, error) {

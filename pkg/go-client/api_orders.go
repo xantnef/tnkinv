@@ -36,7 +36,7 @@ OrdersApiService Отмена заявки
 */
 
 type OrdersCancelPostOpts struct {
-	BrokerAccountId optional.Interface
+	BrokerAccountId OptionalInterface
 }
 
 func (a *OrdersApiService) OrdersCancelPost(ctx context.Context, orderId interface{}, localVarOptionals *OrdersCancelPostOpts) (*http.Response, error) {
@@ -113,7 +113,7 @@ OrdersApiService Получение списка активных заявок
 */
 
 type OrdersGetOpts struct {
-	BrokerAccountId optional.Interface
+	BrokerAccountId OptionalInterface
 }
 
 func (a *OrdersApiService) OrdersGet(ctx context.Context, localVarOptionals *OrdersGetOpts) (*http.Response, error) {
@@ -190,7 +190,7 @@ OrdersApiService Создание лимитной заявки
 */
 
 type OrdersLimitOrderPostOpts struct {
-	BrokerAccountId optional.Interface
+	BrokerAccountId OptionalInterface
 }
 
 func (a *OrdersApiService) OrdersLimitOrderPost(ctx context.Context, figi interface{}, localVarOptionals *OrdersLimitOrderPostOpts) (*http.Response, error) {

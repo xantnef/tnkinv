@@ -21,6 +21,18 @@ func NewClient(tokenf string) *MyClient {
 	}
 }
 
+type optional struct {
+	value string
+}
+
+func (o optional) IsSet() bool {
+	return o.value != ""
+}
+
+func (o optional) Value() interface{} {
+	return o.value
+}
+
 func (c *MyClient) getToken(fname string) string {
 	b, err := ioutil.ReadFile(fname)
 	if err != nil {
@@ -119,7 +131,7 @@ func (c *MyClient) RequestPortfolio() schema.PortfolioResponse {
 	pfApi := c.getAPI().PortfolioApi
 	pfResp := schema.PortfolioResponse{}
 
-	body, err := pfApi.PortfolioGet(nil)
+	body, err := pfApi.PortfolioGet(nil, nil)
 	if err != nil {
 		log.Fatal(err)
 	}

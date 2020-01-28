@@ -36,7 +36,7 @@ SandboxApiService Удаление всех позиций
 */
 
 type SandboxClearPostOpts struct {
-	BrokerAccountId optional.Interface
+	BrokerAccountId OptionalInterface
 }
 
 func (a *SandboxApiService) SandboxClearPost(ctx context.Context, localVarOptionals *SandboxClearPostOpts) (*http.Response, error) {
@@ -112,7 +112,7 @@ SandboxApiService Выставление баланса по валютным п
 */
 
 type SandboxCurrenciesBalancePostOpts struct {
-	BrokerAccountId optional.Interface
+	BrokerAccountId OptionalInterface
 }
 
 func (a *SandboxApiService) SandboxCurrenciesBalancePost(ctx context.Context, localVarOptionals *SandboxCurrenciesBalancePostOpts) (*http.Response, error) {
@@ -188,7 +188,7 @@ SandboxApiService Выставление баланса по инструмен�
 */
 
 type SandboxPositionsBalancePostOpts struct {
-	BrokerAccountId optional.Interface
+	BrokerAccountId OptionalInterface
 }
 
 func (a *SandboxApiService) SandboxPositionsBalancePost(ctx context.Context, localVarOptionals *SandboxPositionsBalancePostOpts) (*http.Response, error) {
@@ -332,7 +332,7 @@ SandboxApiService Удаление счета
 */
 
 type SandboxRemovePostOpts struct {
-	BrokerAccountId optional.Interface
+	BrokerAccountId OptionalInterface
 }
 
 func (a *SandboxApiService) SandboxRemovePost(ctx context.Context, localVarOptionals *SandboxRemovePostOpts) (*http.Response, error) {

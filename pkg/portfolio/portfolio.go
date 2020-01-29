@@ -489,7 +489,7 @@ func (p *Portfolio) ListDeals(start time.Time) {
 		if op.Figi != "" {
 			op.Ticker = p.getTicker(op.Figi)
 		}
-		fmt.Printf("%s\n", op)
+		fmt.Printf("%s\n", op.StringPretty())
 
 		// exploit those balance maps for totals
 		if op.IsTrading() {

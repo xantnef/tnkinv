@@ -195,7 +195,7 @@ func (deal Deal) Value() float64 {
 
 // =============================================================================
 
-func (op Operation) String() string {
+func (op Operation) StringPretty() string {
 	shortTick := op.Ticker
 	if op.Figi == FigiUSD {
 		shortTick = "USD"

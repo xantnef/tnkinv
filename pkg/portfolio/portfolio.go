@@ -127,8 +127,14 @@ func (p *Portfolio) processOperation(op schema.Operation) (deal *schema.Deal) {
 		deal = &schema.Deal{
 			Date:       op.DateParsed,
 			Price:      schema.NewCValue(op.Price, op.Currency),
-			Quantity:   int(op.Quantity),
 			Commission: op.Commission.Value,
+		}
+
+		// bug or feature?
+		// op.Quantity reflects the whole order size;
+		// if the order is only partially completed, sum(op.Trades.Quantity) < op.Quantity
+		for _, trade := range op.Trades {
+			deal.Quantity += int(trade.Quantity)
 		}
 		if op.OperationType == "Sell" {
 			deal.Quantity = -deal.Quantity

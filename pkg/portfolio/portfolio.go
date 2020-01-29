@@ -29,7 +29,7 @@ type Portfolio struct {
 
 	figisSorted []string
 
-	cash, funds, bonds, stocks, totals *schema.Balance
+	cash, funds, bonds, stocks, totals *schema.Balance // may be nil!
 }
 
 func NewPortfolio(c *client.MyClient, accs []string) *Portfolio {
@@ -125,6 +125,7 @@ func (p *Portfolio) processOperation(op schema.Operation) (deal *schema.Deal) {
 			m := map[string]bool{
 				schema.InsTypeEtf:      true,
 				schema.InsTypeStock:    true,
+				schema.InsTypeBond:     true,
 				schema.InsTypeCurrency: true,
 			}
 			if !m[pinfo.Type] {
@@ -151,11 +152,17 @@ func (p *Portfolio) processOperation(op schema.Operation) (deal *schema.Deal) {
 			deal.Quantity = -deal.Quantity
 		}
 
+		// op.Payment is negative for Buy
+		// deal.Quantity is positive for Buy
+		// deal.Price is always positive
+		deal.Accrued = -op.Payment - deal.Price.Value*float64(deal.Quantity)
+
 	} else if op.OperationType == "BrokerCommission" {
 		// negative
 		pinfo.AccumulatedIncome.Value += op.Payment
-	} else if op.OperationType == "Dividend" || op.OperationType == "TaxDividend" {
-		// positive, negative
+
+	} else if op.IsPayment() {
+		// income - positive, taxes - negative
 		pinfo.AccumulatedIncome.Value += op.Payment
 		pinfo.Dividends = append(pinfo.Dividends,
 			&schema.Dividend{
@@ -186,6 +193,8 @@ func (p *Portfolio) processOperation(op schema.Operation) (deal *schema.Deal) {
         1.3 Sold stocks
         1.4 - Bought stocks
         1.5 - Service commissions
+        1.6 - Tax
+        1.7 Dividends & coupons
     2. Open USD positions
  - Payins
     3. Directs payins
@@ -199,6 +208,7 @@ RUB
         1.4 - Bought stocks & dollars
         1.5 - Service commissions
         1.6 - Tax
+        1.7 Dividends & coupons
     2. Open RUB positions
  - Payins:
     3. Direct payins
@@ -207,15 +217,13 @@ RUB
 */
 
 func (p *Portfolio) addOpToBalance(bal *schema.Balance, op schema.Operation) {
-	if op.OperationType == "Dividend" || op.OperationType == "TaxDividend" {
+	if op.IsTrading() || op.OperationType == "BrokerCommission" {
+		// not accounted here
+
+	} else if op.IsPayment() {
+		// 1.7
 		bal.Assets[op.Currency].Value += op.Payment
-	}
-
-	if op.Figi != "" {
-		return
-	}
-
-	if op.OperationType == "PayIn" {
+	} else if op.OperationType == "PayIn" {
 		// 1.1
 		bal.Assets[op.Currency].Value += op.Payment
 		// 3
@@ -351,7 +359,7 @@ func (p *Portfolio) makePortionYields(cc *candles.CandleCache, pinfo *schema.Pos
 	for _, po := range pinfo.Portions {
 		var expense float64
 
-		profit := po.Close.Price.Mult(float64(-po.Close.Quantity))
+		profit := schema.NewCValue(-po.Close.Value(), po.Close.Price.Currency)
 
 		for _, div := range pinfo.Dividends {
 			if div.Date.Before(po.Buys[0].Date) {
@@ -470,7 +478,7 @@ func (p *Portfolio) Collect(at time.Time) {
 	m := p.openDealsBalancePerType(at, cc.Pricef(time.Now()))
 
 	p.funds = m[schema.InsTypeEtf]
-	//p.bonds = m[schema.InsTypeBond]
+	p.bonds = m[schema.InsTypeBond]
 	p.stocks = m[schema.InsTypeStock]
 	p.totals = m[""]
 	p.totals.Add(*p.cash)

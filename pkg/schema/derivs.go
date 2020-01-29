@@ -177,6 +177,7 @@ type Deal struct {
 	Date       time.Time
 	Price      CValue
 	Quantity   int
+	Accrued    float64 // aka NKD
 	Commission float64
 }
 
@@ -190,7 +191,7 @@ func (deal Deal) String() string {
 }
 
 func (deal Deal) Value() float64 {
-	return deal.Price.Value * float64(deal.Quantity)
+	return deal.Price.Value*float64(deal.Quantity) + deal.Accrued
 }
 
 // =============================================================================
@@ -210,6 +211,16 @@ func (op Operation) StringPretty() string {
 func (op Operation) IsTrading() bool {
 	return op.OperationType == "Buy" || op.OperationType == "BuyCard" ||
 		op.OperationType == "Sell"
+}
+
+func (op Operation) IsPayment() bool {
+	// TODO PartRepayment doesnt really belong here.
+	// make it a pseudo-deal?
+	return op.OperationType == "Dividend" ||
+		op.OperationType == "TaxDividend" ||
+		op.OperationType == "Coupon" ||
+		op.OperationType == "TaxCoupon" ||
+		op.OperationType == "PartRepayment"
 }
 
 // =============================================================================

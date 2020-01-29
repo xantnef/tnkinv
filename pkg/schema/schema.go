@@ -5,8 +5,8 @@ import (
 )
 
 const (
-	InsTypeEtf = "Etf"
-	//InsTypeBond = "Bond"
+	InsTypeEtf      = "Etf"
+	InsTypeBond     = "Bond"
 	InsTypeStock    = "Stock"
 	InsTypeCurrency = "Currency"
 )

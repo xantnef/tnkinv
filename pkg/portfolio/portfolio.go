@@ -27,6 +27,8 @@ type Portfolio struct {
 	tickers   map[string]string
 	positions map[string]*schema.PositionInfo
 
+	accrued map[string]float64
+
 	figisSorted []string
 
 	cash, funds, bonds, stocks, totals *schema.Balance // may be nil!
@@ -38,6 +40,7 @@ func NewPortfolio(c *client.MyClient, accs []string) *Portfolio {
 		accs:      accs,
 		tickers:   make(map[string]string),
 		positions: make(map[string]*schema.PositionInfo),
+		accrued:   make(map[string]float64),
 	}
 }
 
@@ -66,13 +69,12 @@ func (p *Portfolio) getFigi(ticker string) string {
 
 // =============================================================================
 
-// by now this is basically only needed to fetch many figi->ticker pairs at once
-
 func (p *Portfolio) processPortfolio() {
 	for _, acc := range p.accs {
 		pfResp := p.client.RequestPortfolio(acc)
 		for _, pos := range pfResp.Payload.Positions {
 			p.tickers[pos.Figi] = pos.Ticker
+			p.accrued[pos.Figi] = pos.AveragePositionPrice.Value - pos.AveragePositionPriceNoNkd.Value
 		}
 	}
 }
@@ -317,9 +319,25 @@ func (p *Portfolio) makeOpenDeal(pinfo *schema.PositionInfo, date time.Time, pri
 		return nil
 	}
 
+	var accrued float64
+	// Disable for now.
+	// Accrued value cannot be fetched for date != Now anyway,
+	// so we better keep the balances uniform
+	if false && pinfo.Type == schema.InsTypeBond {
+		ok := false
+
+		if time.Now().Sub(date).Hours() < 24 {
+			accrued, ok = p.accrued[pinfo.Figi]
+		}
+
+		if !ok {
+			log.Printf("missing accrued value for %s, balance is inaccurate", pinfo.Figi)
+		}
+	}
+
 	deal := &schema.Deal{
 		Date:     date,
-		Price:    schema.NewCValue(pricef(), po.Balance.Currency),
+		Price:    schema.NewCValue(pricef() + accrued, po.Balance.Currency),
 		Quantity: -pinfo.OpenQuantity,
 	}
 

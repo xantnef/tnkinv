@@ -568,6 +568,8 @@ func (p *Portfolio) summarize( /* const */ bal schema.Balance, t time.Time, pric
 }
 
 func (p *Portfolio) ListBalances(start time.Time, period, format string) {
+	p.processPortfolio()
+
 	cc := candles.NewCandleCache(p.client, start, period)
 
 	// just for time reference, can be any figi

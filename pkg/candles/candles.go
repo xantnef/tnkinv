@@ -36,6 +36,15 @@ func (cc *CandleCache) List(figi string) *schema.CandlesResponse {
 	resp := cc.client.RequestCandles(figi, cc.start, time.Now(), cc.period)
 	pcandles = &resp
 
+	// TODO
+	// Candles for amortized bonds are quire fucked up.
+	// They show the old values as if it was now.
+	// e.g.
+	//   1. price = 1000
+	//   2. grew to 1100
+	//   3. amortized to 880
+	// candle for the time point (1) is going to show 800.
+
 	for i := range pcandles.Payload.Candles {
 		var err error
 		c := &pcandles.Payload.Candles[i]

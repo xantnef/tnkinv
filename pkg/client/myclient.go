@@ -3,8 +3,9 @@ package client
 import (
 	"encoding/json"
 	"io/ioutil"
-	"log"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 
 	swagger "../go-client"
 	"../schema"
@@ -56,7 +57,7 @@ func (c *MyClient) TrySandbox() error {
 		log.Fatal(err)
 	}
 
-	log.Print("sandbox register complete")
+	log.Info("sandbox register complete")
 	return nil
 }
 
@@ -85,7 +86,7 @@ func (c *MyClient) RequestCurrentPrice(figi string) float64 {
 		log.Fatal(err)
 	}
 
-	//log.Print(string(body))
+	log.Trace(string(body))
 
 	return mktResp.Payload.LastPrice
 }
@@ -121,8 +122,7 @@ func (c *MyClient) RequestFigi(ticker string) string {
 		log.Fatal(err)
 	}
 
-	//log.Print(string(body))
-	//log.Print(resp)
+	log.Trace(string(body))
 
 	return resp.Payload.Instruments[0].Figi
 }
@@ -144,8 +144,7 @@ func (c *MyClient) RequestPortfolio(acc string) schema.PortfolioResponse {
 		log.Fatal(err)
 	}
 
-	//log.Print(string(body))
-	//log.Print(pfResp)
+	log.Trace(string(body))
 
 	return pfResp
 }
@@ -171,8 +170,7 @@ func (c *MyClient) RequestOperations(start time.Time, acc string) schema.Operati
 		log.Fatal(err)
 	}
 
-	//log.Print(string(body))
-	//log.Print(opsResp)
+	log.Trace(string(body))
 
 	return opsResp
 }
@@ -194,8 +192,7 @@ func (c *MyClient) RequestCandles(figi string, t1, t2 time.Time, interval string
 		log.Fatal(err)
 	}
 
-	//log.Print(string(body))
-	//log.Print(mktResp)
+	log.Trace(string(body))
 
 	return mktResp
 }
@@ -214,8 +211,7 @@ func (c *MyClient) RequestAccounts() schema.AccountsResponse {
 		log.Fatal(err)
 	}
 
-	//log.Print(string(body))
-	//log.Print(accResp)
+	log.Trace(string(body))
 
 	return accResp
 }

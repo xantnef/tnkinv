@@ -3,9 +3,10 @@ package main
 import (
 	"flag"
 	"fmt"
-	"log"
 	"os"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 
 	"../pkg/client"
 	"../pkg/portfolio"
@@ -42,6 +43,7 @@ func parseCmdline() (string, config) {
 	token := fs.String("token", "", "API token")
 	format := fs.String("format", "human", "output format")
 	acc := fs.String("account", "broker", "account")
+	loglevel := fs.String("loglevel", "none", "log level")
 
 	period := fs.String("period", "month", "story period")
 	start := fs.String("start", "", "starting point in time (format: 1922/12/28; default: year ago)")
@@ -51,6 +53,17 @@ func parseCmdline() (string, config) {
 
 	cfg.token = *token
 	cfg.period = *period
+
+	loglevels := map[string]log.Level{
+		"none":  log.InfoLevel,
+		"debug": log.DebugLevel,
+		"all":   log.TraceLevel,
+	}
+	if _, ok := loglevels[*loglevel]; !ok {
+		log.Fatalf("bad log level %s", *loglevel)
+	}
+
+	log.SetLevel(loglevels[*loglevel])
 
 	formats := map[string]bool{
 		"human": true,
@@ -98,6 +111,7 @@ func usage() {
 		"\t   common params: \n" +
 		"\t     --account broker|iis|all \n" +
 		"\t     --format human|table \n" +
+		"\t     --loglevel {debug|all} \n" +
 		"\t   subcmds: \n" +
 		"\t     show   [--at 1922/12/28 (default: today)] \n" +
 		"\t     story  [--start 1901/01/01 (default: year ago)] \n" +

@@ -2,11 +2,12 @@ package portfolio
 
 import (
 	"fmt"
-	"log"
 	"math"
 	"sort"
 	"sync"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 
 	"../candles"
 	"../client"
@@ -111,6 +112,8 @@ func (p *Portfolio) preprocessOperations(start time.Time) {
 // =============================================================================
 
 func (p *Portfolio) processOperation(op schema.Operation) (deal *schema.Deal) {
+	log.Debugf("%s", op)
+
 	if op.Figi == "" {
 		// payins, service commissions
 		return
@@ -135,7 +138,7 @@ func (p *Portfolio) processOperation(op schema.Operation) (deal *schema.Deal) {
 				schema.InsTypeCurrency: true,
 			}
 			if !m[pinfo.Type] {
-				log.Printf("%s: %s", pinfo.Ticker, pinfo.Type)
+				log.Warnf("Unhandled type %s: %s", pinfo.Ticker, pinfo.Type)
 			}
 		}
 		p.positions[op.Figi] = pinfo
@@ -180,7 +183,7 @@ func (p *Portfolio) processOperation(op schema.Operation) (deal *schema.Deal) {
 		// negative
 		pinfo.AccumulatedIncome.Value += op.Payment
 	} else {
-		log.Printf("Unprocessed transaction %v", op)
+		log.Warnf("Unprocessed transaction %v", op)
 	}
 
 	return
@@ -243,7 +246,7 @@ func (p *Portfolio) addOpToBalance(bal *schema.Balance, op schema.Operation) {
 		// 1.6
 		bal.Assets[op.Currency].Value -= -op.Payment
 	} else {
-		log.Printf("Unprocessed transaction 2 %v", op)
+		log.Warnf("Unprocessed transaction 2 %v", op)
 	}
 }
 
@@ -359,7 +362,7 @@ func (p *Portfolio) getAccrued(pinfo *schema.PositionInfo, date time.Time) float
 
 	accrued, ok := p.accrued[pinfo.Figi]
 	if !ok {
-		log.Printf("missing accrued value for %s, balance is inaccurate", pinfo.Figi)
+		log.Warnf("missing accrued value for %s, balance is inaccurate", pinfo.Figi)
 	}
 	return accrued
 }
@@ -489,6 +492,8 @@ func (p *Portfolio) processOperations(cb func(*schema.Balance, time.Time) bool) 
 		}
 
 		p.addOpToBalance(bal, op)
+
+		log.Debugf("new balance: %s", bal)
 	}
 
 	return bal
@@ -504,6 +509,8 @@ func (p *Portfolio) openDealsBalancePerType(time time.Time, pricef func(string) 
 			return pricef(pinfo.Figi)
 		}
 		od := p.makeOpenDeal(pinfo, time, pricef0, true)
+
+		log.Debugf("open deal %s %s %s", pinfo.Figi, pinfo.Ticker, od)
 
 		if od == nil || pinfo.Figi == schema.FigiUSD {
 			continue
@@ -524,6 +531,7 @@ func (p *Portfolio) openDealsBalancePerType(time time.Time, pricef func(string) 
 
 func (p *Portfolio) openDealsBalance(time time.Time, pricef func(string) float64) *schema.Balance {
 	m := p.openDealsBalancePerType(time, pricef)
+	log.Debugf("current asset balance: %s", m[""])
 	return m[""]
 }
 
@@ -629,7 +637,7 @@ func (p *Portfolio) ListBalances(start time.Time, period, format string) {
 	num := len(candles)
 
 	if num == 0 {
-		log.Println("No data for this period")
+		log.Debug("No data for this period")
 		return
 	}
 

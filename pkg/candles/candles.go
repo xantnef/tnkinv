@@ -1,9 +1,10 @@
 package candles
 
 import (
-	"log"
 	"sort"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 
 	"../client"
 	"../schema"

@@ -2,8 +2,9 @@ package schema
 
 import (
 	"fmt"
-	"log"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -259,7 +260,7 @@ type Portion struct {
 func (po *Portion) CheckNoSplitSells(ticker string) {
 	if len(po.SplitSells) > 0 {
 		// those split sells were indeed partial
-		log.Printf("%s: partial sells are not handled nicely yet %s",
+		log.Errorf("%s: partial sells are not handled nicely yet %s",
 			ticker, po.SplitSells)
 		po.SplitSells = []*Deal{}
 	}

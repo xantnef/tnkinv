@@ -32,6 +32,10 @@ type Portfolio struct {
 	figisSorted []string
 
 	cash, funds, bonds, stocks, totals *schema.Balance // may be nil!
+
+	config struct {
+		enableAccrued bool
+	}
 }
 
 func NewPortfolio(c *client.MyClient, accs []string) *Portfolio {
@@ -313,31 +317,34 @@ func (p *Portfolio) addToPortions(pinfo *schema.PositionInfo, deal *schema.Deal)
 	}
 }
 
+func (p *Portfolio) getAccrued(pinfo *schema.PositionInfo, date time.Time) float64 {
+	// Accrued value cannot be fetched for date != Now
+	if pinfo.Type != schema.InsTypeBond {
+		return 0
+	}
+	if !p.config.enableAccrued {
+		return 0
+	}
+	if time.Now().Sub(date).Hours() > 24 {
+		return 0
+	}
+
+	accrued, ok := p.accrued[pinfo.Figi]
+	if !ok {
+		log.Printf("missing accrued value for %s, balance is inaccurate", pinfo.Figi)
+	}
+	return accrued
+}
+
 func (p *Portfolio) makeOpenDeal(pinfo *schema.PositionInfo, date time.Time, pricef func() float64, setClose bool) *schema.Deal {
 	po := p.getOpenPortion(pinfo)
 	if po == nil {
 		return nil
 	}
 
-	var accrued float64
-	// Disable for now.
-	// Accrued value cannot be fetched for date != Now anyway,
-	// so we better keep the balances uniform
-	if false && pinfo.Type == schema.InsTypeBond {
-		ok := false
-
-		if time.Now().Sub(date).Hours() < 24 {
-			accrued, ok = p.accrued[pinfo.Figi]
-		}
-
-		if !ok {
-			log.Printf("missing accrued value for %s, balance is inaccurate", pinfo.Figi)
-		}
-	}
-
 	deal := &schema.Deal{
 		Date:     date,
-		Price:    schema.NewCValue(pricef() + accrued, po.Balance.Currency),
+		Price:    schema.NewCValue(pricef()+p.getAccrued(pinfo, date), po.Balance.Currency),
 		Quantity: -pinfo.OpenQuantity,
 	}
 
@@ -482,6 +489,8 @@ func (p *Portfolio) openDealsBalance(time time.Time, pricef func(string) float64
 func (p *Portfolio) Collect(at time.Time) {
 	var once sync.Once
 	var firstOpTime time.Time
+
+	p.config.enableAccrued = true
 
 	p.processPortfolio()
 

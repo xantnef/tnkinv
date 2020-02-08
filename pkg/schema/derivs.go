@@ -187,11 +187,17 @@ func (deal Deal) String() string {
 		deal.Date.Format("2006/01/02"),
 		deal.Price.Value,
 		deal.Quantity,
-		deal.Price.Mult(float64(deal.Quantity)))
+		deal.CValue())
 }
 
 func (deal Deal) Value() float64 {
 	return deal.Price.Value*float64(deal.Quantity) + deal.Accrued
+}
+
+func (deal Deal) CValue() CValue {
+	cv := deal.Price.Mult(float64(deal.Quantity))
+	cv.Value += deal.Accrued
+	return cv
 }
 
 // =============================================================================
@@ -286,7 +292,7 @@ func (pinfo *PositionInfo) String() string {
 	od := pinfo.OpenDeal
 	if od != nil {
 		s += fmt.Sprintf(" %s (%.2f x %d) +acc %v",
-			od.Price.Mult(float64(-od.Quantity)),
+			od.CValue().Mult(-1.0),
 			od.Price.Value, -od.Quantity, pinfo.AccumulatedIncome)
 	}
 

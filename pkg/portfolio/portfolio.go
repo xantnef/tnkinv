@@ -362,22 +362,34 @@ func (p *Portfolio) getYield(cc *candles.CandleCache, figi string, t1, t2 time.T
 	return p2/p1*100 - 100
 }
 
-func (p *Portfolio) getMarketFund(ticker, currency string) string {
-	if currency == "RUB" {
-		return "FXRL"
+func (p *Portfolio) getBenchmark(ticker, typ, currency string) string {
+	if typ == schema.InsTypeBond {
+		if currency == "RUB" {
+			return "FXRB"
+		}
+		// eurobond.. dont even know
+		return ""
 	}
 
-	// sorry thats all I personally had so far ;)
-	fxitTickers := map[string]bool{
-		"MSFT": true,
-		"NVDA": true,
+	if typ == schema.InsTypeStock {
+		if currency == "RUB" {
+			return "FXRL"
+		}
+
+		// sorry thats all I personally had so far ;)
+		fxitTickers := map[string]bool{
+			"MSFT": true,
+			"NVDA": true,
+		}
+
+		if fxitTickers[ticker] {
+			return "FXIT"
+		}
+
+		return "FXUS"
 	}
 
-	if fxitTickers[ticker] {
-		return "FXIT"
-	}
-
-	return "FXUS"
+	return ""
 }
 
 func (p *Portfolio) makePortionYields(cc *candles.CandleCache, pinfo *schema.PositionInfo) {
@@ -412,10 +424,9 @@ func (p *Portfolio) makePortionYields(cc *candles.CandleCache, pinfo *schema.Pos
 		po.Balance.Value -= expense
 
 		// now compare with the market ETF
-		if pinfo.Type == schema.InsTypeStock {
-			po.YieldMarket = p.getYield(cc,
-				p.getFigi(p.getMarketFund(pinfo.Ticker, po.Balance.Currency)),
-				po.AvgDate, po.Close.Date)
+		bench := p.getBenchmark(pinfo.Ticker, pinfo.Type, po.Balance.Currency)
+		if bench != "" {
+			po.YieldMarket = p.getYield(cc, p.getFigi(bench), po.AvgDate, po.Close.Date)
 		}
 	}
 }

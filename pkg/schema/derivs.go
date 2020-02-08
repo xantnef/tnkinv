@@ -245,12 +245,24 @@ type Portion struct {
 	IsClosed bool
 
 	AvgDate  time.Time
-	AvgPrice CValue // TODO
+	AvgPrice CValue // TODO unused
 
 	Balance     CValue
 	Yield       CValue
 	YieldAnnual float64
 	YieldMarket float64
+
+	// aux and temporary
+	SplitSells []*Deal
+}
+
+func (po *Portion) CheckNoSplitSells(ticker string) {
+	if len(po.SplitSells) > 0 {
+		// those split sells were indeed partial
+		log.Printf("%s: partial sells are not handled nicely yet %s",
+			ticker, po.SplitSells)
+		po.SplitSells = []*Deal{}
+	}
 }
 
 func (po Portion) String() string {

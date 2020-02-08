@@ -161,6 +161,7 @@ func (p *Portfolio) processOperation(op schema.Operation) (deal *schema.Deal) {
 		// op.Payment is negative for Buy
 		// deal.Quantity is positive for Buy
 		// deal.Price is always positive
+		// Commission is not included in Payment
 		deal.Accrued = -op.Payment - deal.Price.Value*float64(deal.Quantity)
 
 	} else if op.OperationType == "BrokerCommission" {
@@ -290,6 +291,8 @@ func (p *Portfolio) addToPortions(pinfo *schema.PositionInfo, deal *schema.Deal)
 	pinfo.OpenSpent += deal.Value()
 
 	if deal.Quantity > 0 { // buy
+		po.CheckNoSplitSells(pinfo.Ticker)
+
 		// TODO think again is this correct?
 		mult := deal.Value() / pinfo.OpenSpent
 
@@ -300,20 +303,45 @@ func (p *Portfolio) addToPortions(pinfo *schema.PositionInfo, deal *schema.Deal)
 		po.Buys = append(po.Buys, deal)
 
 	} else { // sell
-		if pinfo.OpenQuantity > 0 {
-			// TODO
-			log.Printf("Partial sells are not handled nicely yet")
-			return
-		}
+
 		if pinfo.OpenQuantity < 0 {
 			log.Fatalf("negative balance? %v", pinfo)
 		}
 
-		pinfo.OpenSpent = 0
+		if pinfo.OpenQuantity > 0 {
+			// How to better handle it?
+			// 1. split sells. try and merge. those wont split between days,
+			//    so wont cross portion period boundaries
+			//
+			// 2. true partial sells. options?
+			//    2.1 sell all, buy some back
+			//    2.2 ?
+			//
+			po.SplitSells = append(po.SplitSells, deal)
 
-		// complete sell
-		po.Close = deal
-		po.IsClosed = true
+		} else {
+			if len(po.SplitSells) > 0 {
+				// new "superdeal"
+				sdeal := *deal
+				sval := sdeal.Value()
+
+				for _, psell := range po.SplitSells {
+					sdeal.Quantity += psell.Quantity
+					sdeal.Accrued += psell.Accrued
+					sdeal.Commission += psell.Commission
+					sval += psell.Value()
+				}
+
+				sdeal.Price.Value = (sval - sdeal.Accrued) / float64(sdeal.Quantity)
+				deal = &sdeal
+			}
+
+			pinfo.OpenSpent = 0
+
+			// complete sell
+			po.Close = deal
+			po.IsClosed = true
+		}
 	}
 }
 
@@ -341,6 +369,8 @@ func (p *Portfolio) makeOpenDeal(pinfo *schema.PositionInfo, date time.Time, pri
 	if po == nil {
 		return nil
 	}
+
+	po.CheckNoSplitSells(pinfo.Ticker)
 
 	deal := &schema.Deal{
 		Date:     date,

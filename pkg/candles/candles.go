@@ -87,7 +87,7 @@ func (cc *CandleCache) Get(figi string, t time.Time) float64 {
 	}
 }
 
-func (cc *CandleCache) Pricef(t time.Time) func(figi string) float64 {
+func (cc *CandleCache) Pricef1(t time.Time) schema.Pricef1 {
 	return func(figi string) float64 {
 		return cc.Get(figi, t)
 	}

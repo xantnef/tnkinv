@@ -88,6 +88,8 @@ func NewBalance() *Balance {
 			cv := NewCValue(0, cur)
 			m[cur] = &cv
 		}
+		cv := NewCValue(0, "RUB")
+		m["all"] = &cv
 	})
 
 	return b
@@ -96,7 +98,7 @@ func NewBalance() *Balance {
 func (b *Balance) Get(currency string) CValue {
 	return NewCValue(
 		b.Assets[currency].Value-b.Payins[currency].Value,
-		currency)
+		b.Assets[currency].Currency)
 }
 
 func (b *Balance) Foreach(f func(string, CurMap)) {
@@ -109,41 +111,35 @@ func (b *Balance) Foreach(f func(string, CurMap)) {
 func (b *Balance) Copy() *Balance {
 	copy := NewBalance()
 
-	for cur := range Currencies {
-		copy.Commissions[cur] = b.Commissions[cur].Copy()
+	for cur := range b.Payins {
 		copy.Payins[cur] = b.Payins[cur].Copy()
 		copy.Assets[cur] = b.Assets[cur].Copy()
+		copy.Commissions[cur] = b.Commissions[cur].Copy()
 	}
 
 	return copy
 }
 
 func (b *Balance) Add(b2 Balance) {
-	for cur := range Currencies {
-		b.Commissions[cur].Value += b2.Commissions[cur].Value
+	for cur := range b.Payins {
 		b.Payins[cur].Value += b2.Payins[cur].Value
 		b.Assets[cur].Value += b2.Assets[cur].Value
+		b.Commissions[cur].Value += b2.Commissions[cur].Value
 	}
 }
 
-func (b *Balance) GetTotal(usd, eur float64) (p, a, d float64) {
-	getprice := func(cur string) float64 {
-		if cur == "RUB" {
-			return 1
-		} else if cur == "EUR" {
-			return eur
-		} else if cur == "USD" {
-			return usd
-		}
-		return 0
+func (b *Balance) CalcAllAssets(usd, eur float64) float64 {
+	xchgrate := map[string]float64{
+		"RUB": 1,
+		"USD": usd,
+		"EUR": eur,
 	}
 
+	b.Assets["all"].Value = 0
 	for cur := range Currencies {
-		p += b.Payins[cur].Value * getprice(cur)
-		a += b.Assets[cur].Value * getprice(cur)
-		d += b.Get(cur).Value * getprice(cur)
+		b.Assets["all"].Value += b.Assets[cur].Value * xchgrate[cur]
 	}
-	return
+	return b.Assets["all"].Value
 }
 
 const (
@@ -159,7 +155,8 @@ func (b Balance) ToString(t time.Time, usd, eur float64, style string) (s string
 		}
 	}
 
-	p, a, d := b.GetTotal(usd, eur)
+	b.CalcAllAssets(usd, eur)
+	actualCurrencies = append(actualCurrencies, "all")
 
 	if style == TableStyle {
 		s += fmt.Sprintf("%s, ", t.Format("2006/01/02"))
@@ -167,18 +164,14 @@ func (b Balance) ToString(t time.Time, usd, eur float64, style string) (s string
 			s += fmt.Sprintf("%f, %f, %f, ",
 				b.Payins[cur].Value, b.Assets[cur].Value, b.Get(cur).Value)
 		}
-
-		s += fmt.Sprintf("%f, %f, %f\n", p, a, d)
-
+		s += fmt.Sprintln()
 	} else {
 		for _, cur := range actualCurrencies {
 			s += fmt.Sprintf("%s: %s: %7.0f %7.0f %7.0f\n",
 				t.Format("2006/01/02"), cur,
 				b.Payins[cur].Value, b.Assets[cur].Value, b.Get(cur).Value)
 		}
-
-		s += fmt.Sprintf("%s: %s: %7.0f %7.0f %7.0f\n",
-			t.Format("2006/01/02"), "tot", p, a, d)
+		s += fmt.Sprintln()
 	}
 
 	return

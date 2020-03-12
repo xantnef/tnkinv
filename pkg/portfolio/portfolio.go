@@ -228,6 +228,22 @@ RUB
 
 */
 
+func (p *Portfolio) xchgrate(currency string, t time.Time) float64 {
+	if currency == "RUB" {
+		return 1
+	}
+
+	if currency == "USD" {
+		if p.cc == nil {
+			log.Debug("No candle cache for exchange rate")
+			return 0
+		}
+		return p.cc.Get(schema.FigiUSD, t)
+	}
+
+	return 0
+}
+
 func (p *Portfolio) addOpToBalance(bal *schema.Balance, op schema.Operation) {
 	if op.IsTrading() || op.OperationType == "BrokerCommission" {
 		// not accounted here
@@ -240,10 +256,19 @@ func (p *Portfolio) addOpToBalance(bal *schema.Balance, op schema.Operation) {
 		bal.Assets[op.Currency].Value += op.Payment
 		// 3
 		bal.Payins[op.Currency].Value += op.Payment
+
+		// add total payin
+		bal.Payins["all"].Value += op.Payment * p.xchgrate(op.Currency, op.DateParsed)
+
 	} else if op.OperationType == "ServiceCommission" {
+
 		bal.Commissions[op.Currency].Value += op.Payment
+		// add total
+		bal.Commissions["all"].Value += op.Payment * p.xchgrate(op.Currency, op.DateParsed)
+
 		// 1.5
 		bal.Assets[op.Currency].Value -= -op.Payment
+
 	} else if op.OperationType == "Tax" {
 		// 1.6
 		bal.Assets[op.Currency].Value -= -op.Payment
@@ -614,9 +639,7 @@ func (p *Portfolio) ListDeals(start time.Time) {
 	}
 
 	usdrate := p.client.RequestCurrentPrice(schema.FigiUSD)
-	_, dealsT, _ := deals.GetTotal(usdrate, 0)
-	_, commsT, _ := comms.GetTotal(usdrate, 0)
-	fmt.Printf("   percentage: %.2f%%\n", commsT/dealsT*100)
+	fmt.Printf("   percentage: %.2f%%\n", comms.CalcAllAssets(usdrate, 0)/deals.CalcAllAssets(usdrate, 0)*100)
 }
 
 // =============================================================================

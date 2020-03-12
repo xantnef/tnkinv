@@ -25,6 +25,8 @@ type Portfolio struct {
 		ops []schema.Operation
 	}
 
+	cc *candles.CandleCache
+
 	tickers   map[string]string
 	positions map[string]*schema.PositionInfo
 
@@ -389,9 +391,9 @@ func (p *Portfolio) makeOpenDeal(pinfo *schema.PositionInfo, date time.Time, pri
 	return deal
 }
 
-func (p *Portfolio) getYield(cc *candles.CandleCache, figi string, t1, t2 time.Time) float64 {
-	p1 := cc.Get(figi, t1)
-	p2 := cc.Get(figi, t2)
+func (p *Portfolio) getYield(figi string, t1, t2 time.Time) float64 {
+	p1 := p.cc.Get(figi, t1)
+	p2 := p.cc.Get(figi, t2)
 	return p2/p1*100 - 100
 }
 
@@ -425,7 +427,7 @@ func (p *Portfolio) getBenchmark(ticker, typ, currency string) string {
 	return ""
 }
 
-func (p *Portfolio) makePortionYields(cc *candles.CandleCache, pinfo *schema.PositionInfo) {
+func (p *Portfolio) makePortionYields(pinfo *schema.PositionInfo) {
 	for _, po := range pinfo.Portions {
 		var expense float64
 
@@ -459,7 +461,7 @@ func (p *Portfolio) makePortionYields(cc *candles.CandleCache, pinfo *schema.Pos
 		// now compare with the market ETF
 		bench := p.getBenchmark(pinfo.Ticker, pinfo.Type, po.Balance.Currency)
 		if bench != "" {
-			po.YieldMarket = p.getYield(cc, p.getFigi(bench), po.AvgDate, po.Close.Date)
+			po.YieldMarket = p.getYield(p.getFigi(bench), po.AvgDate, po.Close.Date)
 		}
 	}
 }
@@ -528,15 +530,14 @@ func (p *Portfolio) openDealsBalancePerType(time time.Time, pricef1 schema.Price
 	return m
 }
 
-func (p *Portfolio) openDealsBalance(time time.Time, pricef func(string) float64) *schema.Balance {
-	m := p.openDealsBalancePerType(time, pricef)
+func (p *Portfolio) openDealsBalance(time time.Time, pricef1 schema.Pricef1) *schema.Balance {
+	m := p.openDealsBalancePerType(time, pricef1)
 	log.Debugf("current asset balance: %s", m[""])
 	return m[""]
 }
 
 func (p *Portfolio) Collect(at time.Time) {
 	var once sync.Once
-	var firstOpTime time.Time
 
 	p.config.enableAccrued = true
 
@@ -544,13 +545,12 @@ func (p *Portfolio) Collect(at time.Time) {
 
 	p.cash = p.processOperations(func(bal *schema.Balance, opTime time.Time) bool {
 		once.Do(func() {
-			firstOpTime = opTime
+			p.cc = candles.NewCandleCache(p.client, opTime, "week")
 		})
 		return opTime.Before(at)
 	})
 
-	cc := candles.NewCandleCache(p.client, firstOpTime, "week")
-	m := p.openDealsBalancePerType(at, cc.Pricef1(at))
+	m := p.openDealsBalancePerType(at, p.cc.Pricef1(at))
 
 	p.funds = m[schema.InsTypeEtf]
 	p.bonds = m[schema.InsTypeBond]
@@ -559,7 +559,7 @@ func (p *Portfolio) Collect(at time.Time) {
 	p.totals.Add(*p.cash)
 
 	for _, pinfo := range p.positions {
-		p.makePortionYields(cc, pinfo)
+		p.makePortionYields(pinfo)
 	}
 }
 
@@ -618,7 +618,8 @@ func (p *Portfolio) ListDeals(start time.Time) {
 
 // =============================================================================
 
-func (p *Portfolio) summarize( /* const */ bal schema.Balance, t time.Time, pricef1 schema.Pricef1, format string) {
+func (p *Portfolio) summarize( /* const */ bal schema.Balance, t time.Time, format string) {
+	pricef1 := p.cc.Pricef1(t)
 	obal := p.openDealsBalance(t, pricef1)
 	obal.Add(bal)
 	fmt.Print(obal.ToString(t, pricef1(schema.FigiUSD), 0, format))
@@ -627,10 +628,10 @@ func (p *Portfolio) summarize( /* const */ bal schema.Balance, t time.Time, pric
 func (p *Portfolio) ListBalances(start time.Time, period, format string) {
 	p.processPortfolio()
 
-	cc := candles.NewCandleCache(p.client, start, period)
+	p.cc = candles.NewCandleCache(p.client, start, period)
 
 	// just for time reference, can be any figi
-	candles := cc.List(schema.FigiUSD).Payload.Candles
+	candles := p.cc.List(schema.FigiUSD).Payload.Candles
 
 	cidx := 0
 	num := len(candles)
@@ -649,7 +650,7 @@ func (p *Portfolio) ListBalances(start time.Time, period, format string) {
 			if opTime.Before(nextTime) {
 				break
 			}
-			p.summarize(*bal, nextTime, cc.Pricef1(nextTime), format)
+			p.summarize(*bal, nextTime, format)
 		}
 
 		return true
@@ -659,10 +660,10 @@ func (p *Portfolio) ListBalances(start time.Time, period, format string) {
 
 	for ; cidx < num; cidx += 1 {
 		nextTime := candles[cidx].TimeParsed
-		p.summarize(*bal, nextTime, cc.Pricef1(nextTime), format)
+		p.summarize(*bal, nextTime, format)
 	}
 
 	// current balance
 
-	p.summarize(*bal, time.Now(), cc.Pricef1(time.Now()), format)
+	p.summarize(*bal, time.Now(), format)
 }

@@ -551,7 +551,7 @@ func (p *Portfolio) Collect(at time.Time) {
 	})
 
 	cc := candles.NewCandleCache(p.client, firstOpTime, "week")
-	m := p.openDealsBalancePerType(at, cc.Pricef(time.Now()))
+	m := p.openDealsBalancePerType(at, cc.Pricef(at))
 
 	p.funds = m[schema.InsTypeEtf]
 	p.bonds = m[schema.InsTypeBond]

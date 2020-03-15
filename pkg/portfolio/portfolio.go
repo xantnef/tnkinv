@@ -572,7 +572,8 @@ func (p *Portfolio) ListDeals(start time.Time) {
 
 	p.preprocessOperations(start)
 
-	bal := schema.NewBalance()
+	deals := schema.NewBalance()
+	comms := schema.NewBalance()
 	for _, op := range p.data.ops {
 		if op.Status != "Done" {
 			// cancelled declined etc
@@ -587,10 +588,10 @@ func (p *Portfolio) ListDeals(start time.Time) {
 
 		// exploit those balance maps for totals
 		if op.IsTrading() {
-			bal.Assets[op.Currency].Value += math.Abs(op.Payment)
+			deals.Assets[op.Currency].Value += math.Abs(op.Payment)
 			empty = false
 		} else if op.OperationType == "ServiceCommission" || op.OperationType == "BrokerCommission" {
-			bal.Payins[op.Currency].Value += math.Abs(op.Payment)
+			comms.Assets[op.Currency].Value += math.Abs(op.Payment)
 			empty = false
 		}
 	}
@@ -601,19 +602,21 @@ func (p *Portfolio) ListDeals(start time.Time) {
 
 	fmt.Printf(" - Total deals:\n")
 	for _, c := range schema.CurrenciesOrdered {
-		if bal.Assets[c].Value != 0 {
-			fmt.Printf("\t %s\n", bal.Assets[c])
+		if deals.Assets[c].Value != 0 {
+			fmt.Printf("\t %s\n", deals.Assets[c])
 		}
 	}
 	fmt.Printf("   commissions:\n")
 	for _, c := range schema.CurrenciesOrdered {
-		if bal.Payins[c].Value != 0 {
-			fmt.Printf("\t %s\n", bal.Payins[c])
+		if comms.Assets[c].Value != 0 {
+			fmt.Printf("\t %s\n", comms.Assets[c])
 		}
 	}
 
-	comms, deals, _ := bal.GetTotal(p.client.RequestCurrentPrice(schema.FigiUSD), 0)
-	fmt.Printf("   percentage: %.2f%%\n", comms/deals*100)
+	usdrate := p.client.RequestCurrentPrice(schema.FigiUSD)
+	_, dealsT, _ := deals.GetTotal(usdrate, 0)
+	_, commsT, _ := comms.GetTotal(usdrate, 0)
+	fmt.Printf("   percentage: %.2f%%\n", commsT/dealsT*100)
 }
 
 // =============================================================================

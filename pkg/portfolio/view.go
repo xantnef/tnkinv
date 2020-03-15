@@ -38,21 +38,15 @@ func (p *Portfolio) Print() {
 
 		fmt.Printf("    %s:\n", currency) // TODO currency percentage
 
-		if p.funds != nil {
-			fmt.Printf("      %6s: %v (%.0f%%)\n", schema.InsTypeEtf,
-				p.funds.Assets[currency], 100*p.funds.Assets[currency].Value/p.totals.Assets[currency].Value)
-		}
-		if p.stocks != nil {
-			fmt.Printf("      %6s: %v (%.0f%%)\n", schema.InsTypeStock,
-				p.stocks.Assets[currency], 100*p.stocks.Assets[currency].Value/p.totals.Assets[currency].Value)
-		}
-		if p.bonds != nil {
-			fmt.Printf("      %6s: %v (%.0f%%)\n", schema.InsTypeBond,
-				p.bonds.Assets[currency], 100*p.bonds.Assets[currency].Value/p.totals.Assets[currency].Value)
-		}
-		if p.cash != nil {
-			fmt.Printf("      %6s: %v (%.0f%%)\n", "Cash",
-				p.cash.Assets[currency], 100*p.cash.Assets[currency].Value/p.totals.Assets[currency].Value)
+		types := []*schema.Balance{p.funds, p.stocks, p.bonds, p.cash}
+		names := []string{schema.InsTypeEtf, schema.InsTypeStock, schema.InsTypeBond, "Cash"}
+
+		for i, t := range types {
+			if t == nil {
+				continue
+			}
+			fmt.Printf("      %6s: %v (%.0f%%)\n", names[i],
+				t.Assets[currency], 100*t.Assets[currency].Value/p.totals.Assets[currency].Value)
 		}
 	}
 

@@ -238,7 +238,7 @@ func (p *Portfolio) xchgrate(currency string, t time.Time) float64 {
 			log.Debug("No candle cache for exchange rate")
 			return 0
 		}
-		return p.cc.Get(schema.FigiUSD, t)
+		return p.cc.GetOnDay(schema.FigiUSD, t)
 	}
 
 	return 0
@@ -656,11 +656,10 @@ func (p *Portfolio) ListBalances(start time.Time, period, format string) {
 
 	p.cc = candles.NewCandleCache(p.client, start, period)
 
-	// just for time reference, can be any figi
-	candles := p.cc.List(schema.FigiUSD).Payload.Candles
+	candleTimes := p.cc.ListTimes()
 
 	cidx := 0
-	num := len(candles)
+	num := len(candleTimes)
 
 	if num == 0 {
 		log.Debug("No data for this period")
@@ -672,7 +671,7 @@ func (p *Portfolio) ListBalances(start time.Time, period, format string) {
 		// process all candles before opTime
 
 		for ; cidx < num; cidx += 1 {
-			nextTime := candles[cidx].TimeParsed
+			nextTime := candleTimes[cidx]
 			if opTime.Before(nextTime) {
 				break
 			}
@@ -685,11 +684,9 @@ func (p *Portfolio) ListBalances(start time.Time, period, format string) {
 	// process all candles after the last operation
 
 	for ; cidx < num; cidx += 1 {
-		nextTime := candles[cidx].TimeParsed
+		nextTime := candleTimes[cidx]
 		p.summarize(*bal, nextTime, format)
 	}
 
-	// current balance
-
-	p.summarize(*bal, time.Now(), format)
+	p.summarize(*bal, time.Now().Add(24*time.Hour), format)
 }

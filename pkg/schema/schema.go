@@ -11,6 +11,15 @@ const (
 	InsTypeCurrency = "Currency"
 )
 
+type Instrument struct {
+	Figi   string `json:"figi"`
+	Ticker string `json:"ticker"`
+	Name   string `json:"name"`
+	Type   string `json:"instrumentType"`
+
+	FaceValue int `json:"faceValue"`
+}
+
 type PortfolioResponse struct {
 	Payload struct {
 		Positions []struct {
@@ -94,6 +103,7 @@ type SearchByFigiResponse struct {
 		MinPriceIncrement float64 `json:"minPriceIncrement"`
 		Name              string  `json:"name"`
 		Ticker            string  `json:"ticker"`
+		FaceValue         float64 `json:"faceValue"`
 	} `json:"payload"`
 	Status     string `json:"status"`
 	TrackingID string `json:"trackingId"`
@@ -109,6 +119,7 @@ type SearchByTickerResponse struct {
 			MinPriceIncrement float64 `json:"minPriceIncrement"`
 			Name              string  `json:"name"`
 			Ticker            string  `json:"ticker"`
+			FaceValue         float64 `json:"faceValue"`
 		} `json:"instruments"`
 	} `json:"payload"`
 	Status     string `json:"status"`

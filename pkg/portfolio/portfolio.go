@@ -27,8 +27,8 @@ type Portfolio struct {
 
 	cc *candles.CandleCache
 
-	tickers   map[string]string
-	positions map[string]*schema.PositionInfo
+	instruments map[string]schema.Instrument // key=figi
+	positions   map[string]*schema.PositionInfo
 
 	accrued map[string]float64
 
@@ -43,35 +43,37 @@ type Portfolio struct {
 
 func NewPortfolio(c *client.MyClient, accs []string) *Portfolio {
 	return &Portfolio{
-		client:    c,
-		accs:      accs,
-		tickers:   make(map[string]string),
-		positions: make(map[string]*schema.PositionInfo),
-		accrued:   make(map[string]float64),
+		client: c,
+		accs:   accs,
+
+		instruments: make(map[string]schema.Instrument),
+		positions:   make(map[string]*schema.PositionInfo),
+		accrued:     make(map[string]float64),
 	}
 }
 
 // =============================================================================
 
-func (p *Portfolio) getTicker(figi string) string {
-	ticker, ok := p.tickers[figi]
+func (p *Portfolio) insByFigi(figi string) schema.Instrument {
+	ins, ok := p.instruments[figi]
 	if !ok {
-		ticker = p.client.RequestTicker(figi)
-		p.tickers[figi] = ticker
+		ins = p.client.RequestByFigi(figi)
+		p.instruments[figi] = ins
 	}
-	return ticker
+	log.Debug(ins)
+	return ins
 }
 
-func (p *Portfolio) getFigi(ticker string) string {
-	for figi, tick := range p.tickers {
-		if tick == ticker {
-			return figi
+func (p *Portfolio) insByTicker(ticker string) schema.Instrument {
+	for _, ins := range p.instruments {
+		if ins.Ticker == ticker {
+			return ins
 		}
 	}
 
-	figi := p.client.RequestFigi(ticker)
-	p.tickers[figi] = ticker
-	return figi
+	ins := p.client.RequestByTicker(ticker)
+	p.instruments[ins.Figi] = ins
+	return ins
 }
 
 // =============================================================================
@@ -80,7 +82,6 @@ func (p *Portfolio) processPortfolio() {
 	for _, acc := range p.accs {
 		pfResp := p.client.RequestPortfolio(acc)
 		for _, pos := range pfResp.Payload.Positions {
-			p.tickers[pos.Figi] = pos.Ticker
 			p.accrued[pos.Figi] = pos.AveragePositionPrice.Value - pos.AveragePositionPriceNoNkd.Value
 		}
 	}
@@ -124,12 +125,11 @@ func (p *Portfolio) processOperation(op schema.Operation) (deal *schema.Deal) {
 	pinfo := p.positions[op.Figi]
 	if pinfo == nil {
 		pinfo = &schema.PositionInfo{
-			Figi:   op.Figi,
-			Ticker: p.getTicker(op.Figi),
-			Type:   op.InstrumentType,
+			Ins: p.insByFigi(op.Figi),
 
 			AccumulatedIncome: schema.NewCValue(0, op.Currency),
 		}
+		pinfo.Ins.Type = op.InstrumentType // TODO
 
 		// catch unhandled
 		{
@@ -139,8 +139,8 @@ func (p *Portfolio) processOperation(op schema.Operation) (deal *schema.Deal) {
 				schema.InsTypeBond:     true,
 				schema.InsTypeCurrency: true,
 			}
-			if !m[pinfo.Type] {
-				log.Warnf("Unhandled type %s: %s", pinfo.Ticker, pinfo.Type)
+			if !m[pinfo.Ins.Type] {
+				log.Warnf("Unhandled type %s: %s", pinfo.Ins.Ticker, pinfo.Ins.Type)
 			}
 		}
 		p.positions[op.Figi] = pinfo
@@ -279,7 +279,7 @@ func (p *Portfolio) addOpToBalance(bal *schema.Balance, op schema.Operation) {
 
 func (p *Portfolio) addDealToBalance(bal *schema.Balance, figi string, deal *schema.Deal) {
 	pinfo := p.positions[figi]
-	if pinfo.Figi == schema.FigiUSD {
+	if pinfo.Ins.Figi == schema.FigiUSD {
 		// Exchanges
 		// 1.2
 		bal.Assets["USD"].Value += float64(deal.Quantity)
@@ -321,7 +321,7 @@ func (p *Portfolio) addToPortions(pinfo *schema.PositionInfo, deal *schema.Deal)
 	pinfo.OpenSpent += deal.Value()
 
 	if deal.Quantity > 0 { // buy
-		po.CheckNoSplitSells(pinfo.Ticker)
+		po.CheckNoSplitSells(pinfo.Ins.Ticker)
 
 		// TODO think again is this correct?
 		mult := deal.Value() / pinfo.OpenSpent
@@ -377,7 +377,7 @@ func (p *Portfolio) addToPortions(pinfo *schema.PositionInfo, deal *schema.Deal)
 
 func (p *Portfolio) getAccrued(pinfo *schema.PositionInfo, date time.Time) float64 {
 	// Accrued value cannot be fetched for date != Now
-	if pinfo.Type != schema.InsTypeBond {
+	if pinfo.Ins.Type != schema.InsTypeBond {
 		return 0
 	}
 	if !p.config.enableAccrued {
@@ -387,9 +387,9 @@ func (p *Portfolio) getAccrued(pinfo *schema.PositionInfo, date time.Time) float
 		return 0
 	}
 
-	accrued, ok := p.accrued[pinfo.Figi]
+	accrued, ok := p.accrued[pinfo.Ins.Figi]
 	if !ok {
-		log.Warnf("missing accrued value for %s, balance is inaccurate", pinfo.Figi)
+		log.Warnf("missing accrued value for %s, balance is inaccurate", pinfo.Ins.Figi)
 	}
 	return accrued
 }
@@ -400,7 +400,7 @@ func (p *Portfolio) makeOpenDeal(pinfo *schema.PositionInfo, date time.Time, pri
 		return nil
 	}
 
-	po.CheckNoSplitSells(pinfo.Ticker)
+	po.CheckNoSplitSells(pinfo.Ins.Ticker)
 
 	deal := &schema.Deal{
 		Date:     date,
@@ -484,9 +484,9 @@ func (p *Portfolio) makePortionYields(pinfo *schema.PositionInfo) {
 		po.Balance.Value -= expense
 
 		// now compare with the market ETF
-		bench := p.getBenchmark(pinfo.Ticker, pinfo.Type, po.Balance.Currency)
+		bench := p.getBenchmark(pinfo.Ins.Ticker, pinfo.Ins.Type, po.Balance.Currency)
 		if bench != "" {
-			po.YieldMarket = p.getYield(p.getFigi(bench), po.AvgDate, po.Close.Date)
+			po.YieldMarket = p.getYield(p.insByTicker(bench).Figi, po.AvgDate, po.Close.Date)
 		}
 	}
 }
@@ -515,7 +515,7 @@ func (p *Portfolio) processOperations(cb func(*schema.Balance, time.Time) bool) 
 			pinfo.Deals = append(pinfo.Deals, deal)
 
 			p.addToPortions(pinfo, deal)
-			p.addDealToBalance(bal, pinfo.Figi, deal)
+			p.addDealToBalance(bal, pinfo.Ins.Figi, deal)
 		}
 
 		p.addOpToBalance(bal, op)
@@ -532,24 +532,24 @@ func (p *Portfolio) openDealsBalancePerType(time time.Time, pricef1 schema.Price
 	m[""] = total
 
 	for _, pinfo := range p.positions {
-		pricef0 := schema.PriceCurry0(pricef1, pinfo.Figi)
+		pricef0 := schema.PriceCurry0(pricef1, pinfo.Ins.Figi)
 
 		od := p.makeOpenDeal(pinfo, time, pricef0, true)
 
-		log.Debugf("open deal %s %s %s", pinfo.Figi, pinfo.Ticker, od)
+		log.Debugf("open deal %s %s %s", pinfo.Ins.Figi, pinfo.Ins.Ticker, od)
 
-		if od == nil || pinfo.Figi == schema.FigiUSD {
+		if od == nil || pinfo.Ins.Figi == schema.FigiUSD {
 			continue
 		}
 
-		bal := m[pinfo.Type]
+		bal := m[pinfo.Ins.Type]
 		if bal == nil {
 			bal = schema.NewBalance()
-			m[pinfo.Type] = bal
+			m[pinfo.Ins.Type] = bal
 		}
 
-		p.addDealToBalance(bal, pinfo.Figi, od)
-		p.addDealToBalance(total, pinfo.Figi, od)
+		p.addDealToBalance(bal, pinfo.Ins.Figi, od)
+		p.addDealToBalance(total, pinfo.Ins.Figi, od)
 	}
 
 	return m
@@ -607,7 +607,7 @@ func (p *Portfolio) ListDeals(start time.Time) {
 		}
 
 		if op.Figi != "" {
-			op.Ticker = p.getTicker(op.Figi)
+			op.Ticker = p.insByFigi(op.Figi).Ticker
 		}
 		fmt.Printf("%s\n", op.StringPretty())
 

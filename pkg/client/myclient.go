@@ -91,7 +91,7 @@ func (c *MyClient) RequestCurrentPrice(figi string) float64 {
 	return mktResp.Payload.LastPrice
 }
 
-func (c *MyClient) RequestTicker(figi string) string {
+func (c *MyClient) RequestByFigi(figi string) schema.Instrument {
 	mktApi := c.getAPI().MarketApi
 	resp := schema.SearchByFigiResponse{}
 
@@ -105,10 +105,17 @@ func (c *MyClient) RequestTicker(figi string) string {
 		log.Fatalf("by figi(%s): %s", figi, err)
 	}
 
-	return resp.Payload.Ticker
+	log.Trace(string(body))
+
+	return schema.Instrument{
+		Figi:      resp.Payload.Figi,
+		Ticker:    resp.Payload.Ticker,
+		Name:      resp.Payload.Name,
+		FaceValue: int(resp.Payload.FaceValue),
+	}
 }
 
-func (c *MyClient) RequestFigi(ticker string) string {
+func (c *MyClient) RequestByTicker(ticker string) schema.Instrument {
 	mktApi := c.getAPI().MarketApi
 	resp := schema.SearchByTickerResponse{}
 
@@ -124,7 +131,12 @@ func (c *MyClient) RequestFigi(ticker string) string {
 
 	log.Trace(string(body))
 
-	return resp.Payload.Instruments[0].Figi
+	return schema.Instrument{
+		Figi:      resp.Payload.Instruments[0].Figi,
+		Ticker:    resp.Payload.Instruments[0].Ticker,
+		Name:      resp.Payload.Instruments[0].Name,
+		FaceValue: int(resp.Payload.Instruments[0].FaceValue),
+	}
 }
 
 func (c *MyClient) RequestPortfolio(acc string) schema.PortfolioResponse {

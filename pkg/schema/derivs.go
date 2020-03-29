@@ -285,9 +285,7 @@ func (po Portion) String() string {
 // =============================================================================
 
 type PositionInfo struct {
-	Figi   string
-	Ticker string
-	Type   string
+	Ins Instrument
 
 	Deals     []*Deal
 	Dividends []*Dividend
@@ -305,7 +303,7 @@ func (pinfo *PositionInfo) IsClosed() bool {
 }
 
 func (pinfo *PositionInfo) StringPretty() string {
-	s := fmt.Sprintf("%s:", pinfo.Ticker)
+	s := fmt.Sprintf("%s:", pinfo.Ins.Name)
 
 	od := pinfo.OpenDeal
 	if od != nil {
@@ -329,3 +327,5 @@ func (pinfo *PositionInfo) StringPretty() string {
 
 	return s
 }
+
+// =============================================================================

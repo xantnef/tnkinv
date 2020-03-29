@@ -78,12 +78,12 @@ func (c *MyClient) RequestCurrentPrice(figi string) float64 {
 
 	body, err := mktApi.MarketOrderbookGet(nil, figi, 1)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("price(%s): %s", figi, err)
 	}
 
 	err = json.Unmarshal(body, &mktResp)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("price(%s): %s", figi, err)
 	}
 
 	log.Trace(string(body))
@@ -97,12 +97,12 @@ func (c *MyClient) RequestTicker(figi string) string {
 
 	body, err := mktApi.MarketSearchByFigiGet(nil, figi)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("by figi(%s): %s", figi, err)
 	}
 
 	err = json.Unmarshal(body, &resp)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("by figi(%s): %s", figi, err)
 	}
 
 	return resp.Payload.Ticker
@@ -114,12 +114,12 @@ func (c *MyClient) RequestFigi(ticker string) string {
 
 	body, err := mktApi.MarketSearchByTickerGet(nil, ticker)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("by ticker(%s): %s", ticker, err)
 	}
 
 	err = json.Unmarshal(body, &resp)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("by ticker(%s): %s", ticker, err)
 	}
 
 	log.Trace(string(body))
@@ -184,12 +184,12 @@ func (c *MyClient) RequestCandles(figi string, t1, t2 time.Time, interval string
 
 	body, err := mktApi.MarketCandlesGet(nil, figi, t1Str, t2Str, interval)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("candles(%s, %s): %s", figi, t1, err)
 	}
 
 	err = json.Unmarshal(body, &mktResp)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("candles(%s, %s): %s", figi, t1, err)
 	}
 
 	log.Trace(string(body))

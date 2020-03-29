@@ -304,7 +304,7 @@ func (pinfo *PositionInfo) IsClosed() bool {
 	return pinfo.OpenDeal == nil
 }
 
-func (pinfo *PositionInfo) String() string {
+func (pinfo *PositionInfo) StringPretty() string {
 	s := fmt.Sprintf("%s:", pinfo.Ticker)
 
 	od := pinfo.OpenDeal

@@ -55,7 +55,7 @@ func (p *Portfolio) Print() {
 		if pinfo.IsClosed() {
 			return
 		}
-		fmt.Print("  " + pinfo.String() + "\n")
+		fmt.Print("  " + pinfo.StringPretty() + "\n")
 	})
 
 	fmt.Println("== Closed positions ==")
@@ -63,7 +63,7 @@ func (p *Portfolio) Print() {
 		if !pinfo.IsClosed() {
 			return
 		}
-		fmt.Print("  " + pinfo.String() + "\n")
+		fmt.Print("  " + pinfo.StringPretty() + "\n")
 	})
 }
 

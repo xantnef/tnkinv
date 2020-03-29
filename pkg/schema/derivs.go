@@ -283,13 +283,18 @@ func (po Portion) String() string {
 }
 
 // =============================================================================
+type RepaymentPoint struct {
+	Time time.Time
+	Mult float64
+}
 
 type PositionInfo struct {
 	Ins Instrument
 
-	Deals     []*Deal
-	Dividends []*Dividend
-	Portions  []*Portion
+	Deals      []*Deal
+	Dividends  []*Dividend
+	Portions   []*Portion
+	Repayments []*RepaymentPoint
 
 	OpenQuantity int // TODO
 	OpenSpent    float64

@@ -114,6 +114,79 @@ func (p *Portfolio) preprocessOperations(start time.Time) {
 
 // =============================================================================
 
+func repaymentMultiplier(pinfo *schema.PositionInfo, t time.Time) float64 {
+	idx := sort.Search(len(pinfo.Repayments), func(i int) bool {
+		return pinfo.Repayments[i].Time.After(t)
+	})
+
+	if idx < len(pinfo.Repayments) {
+		return pinfo.Repayments[idx].Mult
+	}
+
+	return 1
+}
+
+func (p *Portfolio) addRepayment(figi string, t time.Time, value float64) {
+	pinfo := p.positions[figi]
+	pinfo.Repayments = append(pinfo.Repayments,
+		&schema.RepaymentPoint{
+			Time: t,
+		})
+
+	for _, rep := range pinfo.Repayments {
+		rep.Mult += value
+	}
+}
+
+func (p *Portfolio) addStaticRepayments() {
+	if p.positions["BBG00GW0RM55"] != nil {
+		p.addRepayment("BBG00GW0RM55",
+			time.Date(2019, 12, 10, 7, 0, 0, 0, time.UTC),
+			83)
+		p.addRepayment("BBG00GW0RM55",
+			time.Date(2020, 3, 10, 7, 0, 0, 0, time.UTC),
+			83)
+	}
+}
+
+func (p *Portfolio) calculateRepayments() {
+	amounts := make(map[string]int)
+
+	for _, op := range p.data.ops {
+		if op.Status != "Done" {
+			continue
+		}
+
+		if op.IsTrading() {
+			amounts[op.Figi] += operationQuantity(op)
+			continue
+		}
+
+		if op.OperationType == "PartRepayment" {
+			p.addRepayment(op.Figi, op.DateParsed, op.Payment/float64(amounts[op.Figi]))
+			continue
+		}
+	}
+
+	// Temporary fixup:
+	// The problem is that the solution doesn't work for
+	//  - amortized bonds
+	//  - that were open at some t1 (point we want to know balance at)
+	//  - but were all sold at some point t2
+	//  - and there were more repayments from t2 till now
+	// ..because there seems to be no way to get their partrepayment stats after the selling point
+	// Maybe extrapolate the previous repayments?
+	p.addStaticRepayments()
+
+	// Now normalize the multipliers
+	for _, pinfo := range p.positions {
+		for _, rep := range pinfo.Repayments {
+			log.Debugf("repayment %s at %s: %f/%d", pinfo.Ins.Name, rep.Time, rep.Mult, pinfo.Ins.FaceValue)
+			rep.Mult = (rep.Mult + float64(pinfo.Ins.FaceValue)) / float64(pinfo.Ins.FaceValue)
+		}
+	}
+}
+
 func (p *Portfolio) addPosition(op schema.Operation) *schema.PositionInfo {
 	if pinfo, exists := p.positions[op.Figi]; exists {
 		return pinfo
@@ -221,7 +294,7 @@ func xchgrate(cc *candles.CandleCache, currency string, t time.Time) float64 {
         1.4 - Bought stocks
         1.5 - Service commissions
         1.6 - Tax
-        1.7 Dividends & coupons
+        1.7 Dividends, coupons & repayments
     2. Open USD positions
  - Payins
     3. Directs payins
@@ -235,7 +308,7 @@ RUB
         1.4 - Bought stocks & dollars
         1.5 - Service commissions
         1.6 - Tax
-        1.7 Dividends & coupons
+        1.7 Dividends, coupons & repayments
     2. Open RUB positions
  - Payins:
     3. Direct payins
@@ -393,7 +466,7 @@ func (p *Portfolio) getAccrued(pinfo *schema.PositionInfo, date time.Time) float
 }
 
 func (p *Portfolio) getPrice(pinfo *schema.PositionInfo, t time.Time) float64 {
-	return p.cc.Get(pinfo.Ins.Figi, t) + p.getAccrued(pinfo, t)
+	return p.cc.Get(pinfo.Ins.Figi, t)*repaymentMultiplier(pinfo, t) + p.getAccrued(pinfo, t)
 }
 
 func (p *Portfolio) makeOpenDeal(pinfo *schema.PositionInfo, date time.Time, setClose bool) *schema.Deal {
@@ -503,6 +576,10 @@ func (p *Portfolio) processOperations(cb func(*schema.Balance, time.Time) bool) 
 			p.addPosition(op)
 		}
 	}
+
+	// gotta calc them repayments first, to be able to get correct prices
+	// when calculating balances on the next iteration
+	p.calculateRepayments()
 
 	bal := schema.NewBalance()
 

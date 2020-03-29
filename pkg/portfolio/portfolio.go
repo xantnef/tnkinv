@@ -193,6 +193,22 @@ func (p *Portfolio) processOperation(op schema.Operation) (deal *schema.Deal) {
 
 // =============================================================================
 
+func (p *Portfolio) xchgrate(currency string, t time.Time) float64 {
+	if currency == "RUB" {
+		return 1
+	}
+
+	if currency == "USD" {
+		if p.cc == nil {
+			log.Debug("No candle cache for exchange rate")
+			return 0
+		}
+		return p.cc.GetOnDay(schema.FigiUSD, t)
+	}
+
+	return 0
+}
+
 /*
 
  Balance consists of:
@@ -227,22 +243,6 @@ RUB
     5. - Exchanged money
 
 */
-
-func (p *Portfolio) xchgrate(currency string, t time.Time) float64 {
-	if currency == "RUB" {
-		return 1
-	}
-
-	if currency == "USD" {
-		if p.cc == nil {
-			log.Debug("No candle cache for exchange rate")
-			return 0
-		}
-		return p.cc.GetOnDay(schema.FigiUSD, t)
-	}
-
-	return 0
-}
 
 func (p *Portfolio) addOpToBalance(bal *schema.Balance, op schema.Operation) {
 	if op.IsTrading() || op.OperationType == "BrokerCommission" {

@@ -114,6 +114,34 @@ func (p *Portfolio) preprocessOperations(start time.Time) {
 
 // =============================================================================
 
+func (p *Portfolio) addPosition(op schema.Operation) *schema.PositionInfo {
+	if pinfo, exists := p.positions[op.Figi]; exists {
+		return pinfo
+	}
+
+	pinfo := &schema.PositionInfo{
+		Ins: p.insByFigi(op.Figi),
+
+		AccumulatedIncome: schema.NewCValue(0, op.Currency),
+	}
+	pinfo.Ins.Type = op.InstrumentType // TODO
+
+	// catch unhandled
+	{
+		m := map[string]bool{
+			schema.InsTypeEtf:      true,
+			schema.InsTypeStock:    true,
+			schema.InsTypeBond:     true,
+			schema.InsTypeCurrency: true,
+		}
+		if !m[pinfo.Ins.Type] {
+			log.Warnf("Unhandled type %s: %s", pinfo.Ins.Ticker, pinfo.Ins.Type)
+		}
+	}
+	p.positions[op.Figi] = pinfo
+	return pinfo
+}
+
 func operationQuantity(op schema.Operation) int {
 	quantity := 0
 	// bug or feature?
@@ -128,37 +156,8 @@ func operationQuantity(op schema.Operation) int {
 	return quantity
 }
 
-func (p *Portfolio) processOperation(op schema.Operation) (deal *schema.Deal) {
+func (p *Portfolio) accountOperation(pinfo *schema.PositionInfo, op schema.Operation) (deal *schema.Deal) {
 	log.Debugf("%s", op)
-
-	if op.Figi == "" {
-		// payins, service commissions
-		return
-	}
-
-	pinfo := p.positions[op.Figi]
-	if pinfo == nil {
-		pinfo = &schema.PositionInfo{
-			Ins: p.insByFigi(op.Figi),
-
-			AccumulatedIncome: schema.NewCValue(0, op.Currency),
-		}
-		pinfo.Ins.Type = op.InstrumentType // TODO
-
-		// catch unhandled
-		{
-			m := map[string]bool{
-				schema.InsTypeEtf:      true,
-				schema.InsTypeStock:    true,
-				schema.InsTypeBond:     true,
-				schema.InsTypeCurrency: true,
-			}
-			if !m[pinfo.Ins.Type] {
-				log.Warnf("Unhandled type %s: %s", pinfo.Ins.Ticker, pinfo.Ins.Type)
-			}
-		}
-		p.positions[op.Figi] = pinfo
-	}
 
 	if op.IsTrading() {
 		deal = &schema.Deal{
@@ -499,6 +498,12 @@ func (p *Portfolio) makePortionYields(pinfo *schema.PositionInfo) {
 func (p *Portfolio) processOperations(cb func(*schema.Balance, time.Time) bool) *schema.Balance {
 	p.preprocessOperations(beginning)
 
+	for _, op := range p.data.ops {
+		if op.Status == "Done" && op.Figi != "" {
+			p.addPosition(op)
+		}
+	}
+
 	bal := schema.NewBalance()
 
 	for _, op := range p.data.ops {
@@ -512,18 +517,25 @@ func (p *Portfolio) processOperations(cb func(*schema.Balance, time.Time) bool) 
 			break
 		}
 
-		deal := p.processOperation(op)
-		if deal != nil {
+		if op.Figi != "" {
 			pinfo := p.positions[op.Figi]
-			pinfo.Deals = append(pinfo.Deals, deal)
-
-			p.addToPortions(pinfo, deal)
-			addDealToBalance(bal, pinfo.Ins.Figi, deal)
+			deal := p.accountOperation(pinfo, op)
+			if deal != nil {
+				pinfo.Deals = append(pinfo.Deals, deal)
+				p.addToPortions(pinfo, deal)
+				addDealToBalance(bal, pinfo.Ins.Figi, deal)
+			}
 		}
 
 		addOpToBalance(bal, op, p.cc)
 
 		log.Debugf("new balance: %s", bal)
+	}
+
+	for _, pinfo := range p.positions {
+		if len(pinfo.Deals) == 0 {
+			delete(p.positions, pinfo.Ins.Figi)
+		}
 	}
 
 	return bal

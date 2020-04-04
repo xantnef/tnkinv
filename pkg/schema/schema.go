@@ -13,13 +13,25 @@ const (
 	InsTypeCurrency         = "Currency"
 )
 
+type Section string
+
+const (
+	BondRub  Section = "Bond.RUB"
+	BondUsd          = "Bond.USD"
+	StockRub         = "Stock.RUB"
+	StockUsd         = "Stock.USD"
+	CashRub          = "Cash.RUB"
+	CashUsd          = "Cash.USD"
+)
+
 type Instrument struct {
 	Figi      string `json:"figi"`
 	Ticker    string `json:"ticker"`
 	Name      string `json:"name"`
 	FaceValue int    `json:"faceValue"`
 
-	Type InsType
+	Type    InsType
+	Section Section
 }
 
 type PortfolioResponse struct {

@@ -48,3 +48,44 @@ func getBenchmark(ticker string, typ schema.InsType, currency string) string {
 
 	return ""
 }
+
+func getSection(ticker string, typ schema.InsType, currency string) schema.Section {
+	m := map[string]schema.Section{
+		schema.InsTypeBond + "RUB": schema.BondRub,
+		schema.InsTypeBond + "USD": schema.BondUsd,
+
+		schema.InsTypeStock + "RUB": schema.StockRub,
+		schema.InsTypeStock + "USD": schema.StockUsd,
+
+		schema.InsTypeCurrency + "RUB": schema.CashRub,
+		schema.InsTypeCurrency + "USD": schema.CashUsd,
+	}
+	if s, ok := m[string(typ)+currency]; ok {
+		return s
+	}
+
+	if typ == schema.InsTypeEtf {
+		mt := map[string]schema.Section{
+			"VTBB": schema.BondRub,
+			"FXRB": schema.BondRub,
+
+			"FXRU": schema.BondUsd,
+
+			"SBMX": schema.StockRub,
+			"FXRL": schema.StockRub,
+
+			"AKNX": schema.StockUsd,
+			"FXIT": schema.StockUsd,
+			"FXUS": schema.StockUsd,
+
+			"FXMM": schema.CashRub,
+			"FXTB": schema.CashUsd,
+		}
+		if s, ok := mt[ticker]; ok {
+			return s
+		}
+		log.Warnf("Uncatched ETF %s", ticker)
+	}
+
+	return ""
+}

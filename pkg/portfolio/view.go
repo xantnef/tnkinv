@@ -7,48 +7,46 @@ import (
 	"../schema"
 )
 
+func printBalance(sections map[schema.Section]*schema.Balance, total *schema.Balance, prefix, style string) {
+	p, a := total.Payins["all"].Value, total.Assets["all"].Value
+	d := a - p
+
+	sectionShare := func(section schema.Section) float64 {
+		bal := sections[section]
+		if bal == nil {
+			return 0
+		}
+
+		return 100 * bal.Assets["all"].Value / a
+	}
+
+	bru, bus, sru, sus := sectionShare(schema.BondRub),
+		sectionShare(schema.BondUsd),
+		sectionShare(schema.StockRub),
+		sectionShare(schema.StockUsd)
+
+	s := ""
+	if style == schema.TableStyle {
+		if prefix != "" {
+			s = prefix + ", "
+		}
+		s += fmt.Sprintf("%.0f, %.0f, %.0f, %.0f, %.0f, %.0f, %.0f",
+			p, a, d, bru, bus, sru, sus)
+
+	} else {
+		if prefix != "" {
+			s = prefix + ": "
+		}
+		s += fmt.Sprintf("%9.0f -> %9.0f : %8.0f : bonds %2.0f+%2.0f%% stocks %2.0f+%2.0f%%",
+			p, a, d, bru, bus, sru, sus)
+	}
+	fmt.Println(s)
+}
+
 func (p *Portfolio) Print() {
 	fmt.Println("== Totals ==")
 
-	p.totals.Foreach(func(nm string, m schema.CurMap) {
-		fmt.Printf("  %s:\n", nm)
-		for _, currency := range schema.CurrenciesOrdered {
-			cv := m[currency]
-			if cv.Value == 0 {
-				continue
-			}
-			fmt.Printf("    %v\n", *cv)
-		}
-	})
-
-	fmt.Println("  Balance:")
-	for _, currency := range schema.CurrenciesOrdered {
-		bal := p.totals.Get(currency)
-		if bal.Value == 0 {
-			continue
-		}
-		fmt.Printf("    %v\n", bal)
-	}
-
-	fmt.Println("  Distribution:")
-	for _, currency := range schema.CurrenciesOrdered {
-		if p.totals.Assets[currency].Value == 0 {
-			continue
-		}
-
-		fmt.Printf("    %s:\n", currency) // TODO currency percentage
-
-		types := []*schema.Balance{p.funds, p.stocks, p.bonds, p.cash}
-		names := []schema.InsType{schema.InsTypeEtf, schema.InsTypeStock, schema.InsTypeBond, "Cash"}
-
-		for i, t := range types {
-			if t == nil {
-				continue
-			}
-			fmt.Printf("      %6s: %v (%.0f%%)\n", names[i],
-				t.Assets[currency], 100*t.Assets[currency].Value/p.totals.Assets[currency].Value)
-		}
-	}
+	printBalance(p.sections, p.totals, "", "")
 
 	fmt.Println("== Current positions ==")
 	p.forSortedPositions(func(pinfo *schema.PositionInfo) {

@@ -16,6 +16,8 @@ import (
 
 var beginning = time.Date(2016, 1, 1, 0, 0, 0, 0, time.UTC)
 
+type sectionMap map[schema.Section]*schema.Balance
+
 type Portfolio struct {
 	client *client.MyClient
 
@@ -34,7 +36,8 @@ type Portfolio struct {
 
 	figisSorted []string
 
-	cash, funds, bonds, stocks, totals *schema.Balance // may be nil!
+	sections sectionMap
+	totals   *schema.Balance
 
 	config struct {
 		enableAccrued bool
@@ -49,6 +52,8 @@ func NewPortfolio(c *client.MyClient, accs []string) *Portfolio {
 		instruments: make(map[string]schema.Instrument),
 		positions:   make(map[string]*schema.PositionInfo),
 		accrued:     make(map[string]float64),
+
+		sections: make(sectionMap),
 	}
 }
 
@@ -198,6 +203,7 @@ func (p *Portfolio) addPosition(op schema.Operation) *schema.PositionInfo {
 		AccumulatedIncome: schema.NewCValue(0, op.Currency),
 	}
 	pinfo.Ins.Type = getInstrumentType(op.InstrumentType, pinfo.Ins.Ticker)
+	pinfo.Ins.Section = getSection(pinfo.Ins.Ticker, pinfo.Ins.Type, op.Currency)
 
 	p.positions[op.Figi] = pinfo
 	return pinfo
@@ -576,10 +582,9 @@ func (p *Portfolio) processOperations(cb func(*schema.Balance, time.Time) bool) 
 	return bal
 }
 
-func (p *Portfolio) openDealsBalancePerType(time time.Time) map[schema.InsType]*schema.Balance {
-	m := make(map[schema.InsType]*schema.Balance)
+func (p *Portfolio) openDealsBalancePerSection(time time.Time) (sectionMap, *schema.Balance) {
+	m := make(sectionMap)
 	total := schema.NewBalance()
-	m[""] = total
 
 	for _, pinfo := range p.positions {
 		od := p.makeOpenDeal(pinfo, time, true)
@@ -590,23 +595,23 @@ func (p *Portfolio) openDealsBalancePerType(time time.Time) map[schema.InsType]*
 			continue
 		}
 
-		bal := m[pinfo.Ins.Type]
+		bal := m[pinfo.Ins.Section]
 		if bal == nil {
 			bal = schema.NewBalance()
-			m[pinfo.Ins.Type] = bal
+			m[pinfo.Ins.Section] = bal
 		}
 
 		addDealToBalance(bal, pinfo.Ins.Figi, od)
 		addDealToBalance(total, pinfo.Ins.Figi, od)
 	}
 
-	return m
+	return m, total
 }
 
 func (p *Portfolio) openDealsBalance(time time.Time) *schema.Balance {
-	m := p.openDealsBalancePerType(time)
-	log.Debugf("current asset balance: %s", m[""])
-	return m[""]
+	_, b := p.openDealsBalancePerSection(time)
+	log.Debugf("current asset balance: %s", b)
+	return b
 }
 
 func (p *Portfolio) Collect(at time.Time) {
@@ -616,20 +621,17 @@ func (p *Portfolio) Collect(at time.Time) {
 
 	p.processPortfolio()
 
-	p.cash = p.processOperations(func(bal *schema.Balance, opTime time.Time) bool {
+	cash := p.processOperations(func(bal *schema.Balance, opTime time.Time) bool {
 		once.Do(func() {
 			p.cc = candles.NewCandleCache(p.client, opTime, "week")
 		})
 		return opTime.Before(at)
 	})
 
-	m := p.openDealsBalancePerType(at)
+	p.sections, p.totals = p.openDealsBalancePerSection(at)
+	p.totals.Add(*cash)
 
-	p.funds = m[schema.InsTypeEtf]
-	p.bonds = m[schema.InsTypeBond]
-	p.stocks = m[schema.InsTypeStock]
-	p.totals = m[""]
-	p.totals.Add(*p.cash)
+	p.calcAllAssets(at, p.sections, p.totals)
 
 	for _, pinfo := range p.positions {
 		p.makePortionYields(pinfo)
@@ -692,11 +694,21 @@ func (p *Portfolio) ListDeals(start time.Time) {
 
 // =============================================================================
 
+func (p *Portfolio) calcAllAssets(t time.Time, sections sectionMap, totals *schema.Balance) {
+	usd, eur := p.cc.Get(schema.FigiUSD, t), 0.0
+
+	totals.CalcAllAssets(usd, eur)
+	for _, section := range sections {
+		section.CalcAllAssets(usd, eur)
+	}
+}
+
 func (p *Portfolio) summarize( /* const */ bal schema.Balance, t time.Time, format string) {
-	obal := p.openDealsBalance(t)
+	sections, obal := p.openDealsBalancePerSection(t)
 	obal.Add(bal)
-	obal.CalcAllAssets(p.cc.Get(schema.FigiUSD, t), 0)
-	fmt.Print(obal.ToString(t.Format("2006/01/02"), format))
+	p.calcAllAssets(t, sections, obal)
+
+	printBalance(sections, obal, t.Format("2006/01/02"), format)
 }
 
 func (p *Portfolio) ListBalances(start time.Time, period, format string) {

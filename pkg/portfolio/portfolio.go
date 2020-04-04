@@ -193,17 +193,12 @@ func (p *Portfolio) processOperation(op schema.Operation) (deal *schema.Deal) {
 
 // =============================================================================
 
-func (p *Portfolio) xchgrate(currency string, t time.Time) float64 {
+func xchgrate(cc *candles.CandleCache, currency string, t time.Time) float64 {
 	if currency == "RUB" {
 		return 1
 	}
-
 	if currency == "USD" {
-		if p.cc == nil {
-			log.Debug("No candle cache for exchange rate")
-			return 0
-		}
-		return p.cc.GetOnDay(schema.FigiUSD, t)
+		return cc.GetOnDay(schema.FigiUSD, t)
 	}
 
 	return 0
@@ -244,7 +239,7 @@ RUB
 
 */
 
-func (p *Portfolio) addOpToBalance(bal *schema.Balance, op schema.Operation) {
+func addOpToBalance(bal *schema.Balance, op schema.Operation, cc *candles.CandleCache) {
 	if op.IsTrading() || op.OperationType == "BrokerCommission" {
 		// not accounted here
 
@@ -258,13 +253,13 @@ func (p *Portfolio) addOpToBalance(bal *schema.Balance, op schema.Operation) {
 		bal.Payins[op.Currency].Value += op.Payment
 
 		// add total payin
-		bal.Payins["all"].Value += op.Payment * p.xchgrate(op.Currency, op.DateParsed)
+		bal.Payins["all"].Value += op.Payment * xchgrate(cc, op.Currency, op.DateParsed)
 
 	} else if op.OperationType == "ServiceCommission" {
 
 		bal.Commissions[op.Currency].Value += op.Payment
 		// add total
-		bal.Commissions["all"].Value += op.Payment * p.xchgrate(op.Currency, op.DateParsed)
+		bal.Commissions["all"].Value += op.Payment * xchgrate(cc, op.Currency, op.DateParsed)
 
 		// 1.5
 		bal.Assets[op.Currency].Value -= -op.Payment
@@ -277,9 +272,8 @@ func (p *Portfolio) addOpToBalance(bal *schema.Balance, op schema.Operation) {
 	}
 }
 
-func (p *Portfolio) addDealToBalance(bal *schema.Balance, figi string, deal *schema.Deal) {
-	pinfo := p.positions[figi]
-	if pinfo.Ins.Figi == schema.FigiUSD {
+func addDealToBalance(bal *schema.Balance, figi string, deal *schema.Deal) {
+	if figi == schema.FigiUSD {
 		// Exchanges
 		// 1.2
 		bal.Assets["USD"].Value += float64(deal.Quantity)
@@ -394,7 +388,11 @@ func (p *Portfolio) getAccrued(pinfo *schema.PositionInfo, date time.Time) float
 	return accrued
 }
 
-func (p *Portfolio) makeOpenDeal(pinfo *schema.PositionInfo, date time.Time, pricef schema.Pricef0, setClose bool) *schema.Deal {
+func (p *Portfolio) getPrice(pinfo *schema.PositionInfo, t time.Time) float64 {
+	return p.cc.Get(pinfo.Ins.Figi, t) + p.getAccrued(pinfo, t)
+}
+
+func (p *Portfolio) makeOpenDeal(pinfo *schema.PositionInfo, date time.Time, setClose bool) *schema.Deal {
 	po := p.getOpenPortion(pinfo)
 	if po == nil {
 		return nil
@@ -404,7 +402,7 @@ func (p *Portfolio) makeOpenDeal(pinfo *schema.PositionInfo, date time.Time, pri
 
 	deal := &schema.Deal{
 		Date:     date,
-		Price:    schema.NewCValue(pricef()+p.getAccrued(pinfo, date), po.Balance.Currency),
+		Price:    schema.NewCValue(p.getPrice(pinfo, date), po.Balance.Currency),
 		Quantity: -pinfo.OpenQuantity,
 	}
 
@@ -515,10 +513,10 @@ func (p *Portfolio) processOperations(cb func(*schema.Balance, time.Time) bool) 
 			pinfo.Deals = append(pinfo.Deals, deal)
 
 			p.addToPortions(pinfo, deal)
-			p.addDealToBalance(bal, pinfo.Ins.Figi, deal)
+			addDealToBalance(bal, pinfo.Ins.Figi, deal)
 		}
 
-		p.addOpToBalance(bal, op)
+		addOpToBalance(bal, op, p.cc)
 
 		log.Debugf("new balance: %s", bal)
 	}
@@ -526,15 +524,13 @@ func (p *Portfolio) processOperations(cb func(*schema.Balance, time.Time) bool) 
 	return bal
 }
 
-func (p *Portfolio) openDealsBalancePerType(time time.Time, pricef1 schema.Pricef1) map[string]*schema.Balance {
+func (p *Portfolio) openDealsBalancePerType(time time.Time) map[string]*schema.Balance {
 	m := make(map[string]*schema.Balance)
 	total := schema.NewBalance()
 	m[""] = total
 
 	for _, pinfo := range p.positions {
-		pricef0 := schema.PriceCurry0(pricef1, pinfo.Ins.Figi)
-
-		od := p.makeOpenDeal(pinfo, time, pricef0, true)
+		od := p.makeOpenDeal(pinfo, time, true)
 
 		log.Debugf("open deal %s %s %s", pinfo.Ins.Figi, pinfo.Ins.Ticker, od)
 
@@ -548,15 +544,15 @@ func (p *Portfolio) openDealsBalancePerType(time time.Time, pricef1 schema.Price
 			m[pinfo.Ins.Type] = bal
 		}
 
-		p.addDealToBalance(bal, pinfo.Ins.Figi, od)
-		p.addDealToBalance(total, pinfo.Ins.Figi, od)
+		addDealToBalance(bal, pinfo.Ins.Figi, od)
+		addDealToBalance(total, pinfo.Ins.Figi, od)
 	}
 
 	return m
 }
 
-func (p *Portfolio) openDealsBalance(time time.Time, pricef1 schema.Pricef1) *schema.Balance {
-	m := p.openDealsBalancePerType(time, pricef1)
+func (p *Portfolio) openDealsBalance(time time.Time) *schema.Balance {
+	m := p.openDealsBalancePerType(time)
 	log.Debugf("current asset balance: %s", m[""])
 	return m[""]
 }
@@ -575,7 +571,7 @@ func (p *Portfolio) Collect(at time.Time) {
 		return opTime.Before(at)
 	})
 
-	m := p.openDealsBalancePerType(at, p.cc.Pricef1(at))
+	m := p.openDealsBalancePerType(at)
 
 	p.funds = m[schema.InsTypeEtf]
 	p.bonds = m[schema.InsTypeBond]
@@ -645,10 +641,9 @@ func (p *Portfolio) ListDeals(start time.Time) {
 // =============================================================================
 
 func (p *Portfolio) summarize( /* const */ bal schema.Balance, t time.Time, format string) {
-	pricef1 := p.cc.Pricef1(t)
-	obal := p.openDealsBalance(t, pricef1)
+	obal := p.openDealsBalance(t)
 	obal.Add(bal)
-	fmt.Print(obal.ToString(t, pricef1(schema.FigiUSD), 0, format))
+	fmt.Print(obal.ToString(t, p.cc.Get(schema.FigiUSD, t), 0, format))
 }
 
 func (p *Portfolio) ListBalances(start time.Time, period, format string) {

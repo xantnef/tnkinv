@@ -13,7 +13,7 @@ import (
 )
 
 type config struct {
-	token, period, format, acc string
+	token, sideOps, period, format, acc string
 
 	start, at time.Time
 }
@@ -41,6 +41,7 @@ func parseCmdline() (string, config) {
 
 	fs := flag.NewFlagSet("", flag.ExitOnError)
 	token := fs.String("token", "", "API token")
+	sideOps := fs.String("operations", "", "json file with operations")
 	format := fs.String("format", "human", "output format")
 	acc := fs.String("account", "broker", "account")
 	loglevel := fs.String("loglevel", "none", "log level")
@@ -52,6 +53,7 @@ func parseCmdline() (string, config) {
 	fs.Parse(os.Args[2:])
 
 	cfg.token = *token
+	cfg.sideOps = *sideOps
 	cfg.period = *period
 
 	loglevels := map[string]log.Level{
@@ -110,6 +112,7 @@ func usage() {
 		"\t tnkinv {subcmd} [params] --token file_with_token \n" +
 		"\t   common params: \n" +
 		"\t     --account broker|iis|all \n" +
+		"\t     --operations filename \n" +
 		"\t     --format human|table \n" +
 		"\t     --loglevel {debug|all} \n" +
 		"\t   subcmds: \n" +
@@ -151,7 +154,7 @@ func main() {
 	}
 
 	c := client.NewClient(cfg.token)
-	port := portfolio.NewPortfolio(c, getAccountIds(c, cfg.acc))
+	port := portfolio.NewPortfolio(c, getAccountIds(c, cfg.acc), cfg.sideOps)
 
 	if cmd == "show" {
 		if cfg.at.IsZero() {

@@ -1,8 +1,11 @@
 package portfolio
 
 import (
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"math"
+	"os"
 	"sort"
 	"sync"
 	"time"
@@ -41,11 +44,12 @@ type Portfolio struct {
 
 	config struct {
 		enableAccrued bool
+		opsFile       string
 	}
 }
 
-func NewPortfolio(c *client.MyClient, accs []string) *Portfolio {
-	return &Portfolio{
+func NewPortfolio(c *client.MyClient, accs []string, opsFile string) *Portfolio {
+	p := &Portfolio{
 		client: c,
 		accs:   accs,
 
@@ -55,6 +59,8 @@ func NewPortfolio(c *client.MyClient, accs []string) *Portfolio {
 
 		sections: make(sectionMap),
 	}
+	p.config.opsFile = opsFile
+	return p
 }
 
 // =============================================================================
@@ -94,6 +100,23 @@ func (p *Portfolio) processPortfolio() {
 
 // =============================================================================
 
+func readOperations(fname string) (ops []schema.Operation) {
+	data, err := ioutil.ReadFile(fname)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return
+		}
+		log.Fatal(err)
+	}
+
+	err = json.Unmarshal(data, &ops)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return ops
+}
+
 func (p *Portfolio) preprocessOperations(start time.Time) {
 	var ops []schema.Operation
 
@@ -101,6 +124,8 @@ func (p *Portfolio) preprocessOperations(start time.Time) {
 		resp := p.client.RequestOperations(start, acc)
 		ops = append(ops, resp.Payload.Operations...)
 	}
+
+	ops = append(ops, readOperations(p.config.opsFile)...)
 
 	for i := range ops {
 		var err error

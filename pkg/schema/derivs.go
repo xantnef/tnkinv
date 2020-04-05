@@ -146,7 +146,7 @@ const (
 	TableStyle = "table"
 )
 
-func (b Balance) ToString(t time.Time, usd, eur float64, style string) (s string) {
+func (b Balance) ToString(prefix string, style string) (s string) {
 	actualCurrencies := []string{}
 
 	for _, cur := range CurrenciesOrdered {
@@ -155,11 +155,10 @@ func (b Balance) ToString(t time.Time, usd, eur float64, style string) (s string
 		}
 	}
 
-	b.CalcAllAssets(usd, eur)
 	actualCurrencies = append(actualCurrencies, "all")
 
 	if style == TableStyle {
-		s += fmt.Sprintf("%s, ", t.Format("2006/01/02"))
+		s += fmt.Sprintf("%s: ", prefix)
 		for _, cur := range actualCurrencies {
 			s += fmt.Sprintf("%f, %f, %f, ",
 				b.Payins[cur].Value, b.Assets[cur].Value, b.Get(cur).Value)
@@ -168,7 +167,7 @@ func (b Balance) ToString(t time.Time, usd, eur float64, style string) (s string
 	} else {
 		for _, cur := range actualCurrencies {
 			s += fmt.Sprintf("%s: %s: %7.0f %7.0f %7.0f\n",
-				t.Format("2006/01/02"), cur,
+				prefix, cur,
 				b.Payins[cur].Value, b.Assets[cur].Value, b.Get(cur).Value)
 		}
 		s += fmt.Sprintln()

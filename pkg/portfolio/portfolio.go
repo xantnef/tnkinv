@@ -695,7 +695,8 @@ func (p *Portfolio) ListDeals(start time.Time) {
 func (p *Portfolio) summarize( /* const */ bal schema.Balance, t time.Time, format string) {
 	obal := p.openDealsBalance(t)
 	obal.Add(bal)
-	fmt.Print(obal.ToString(t, p.cc.Get(schema.FigiUSD, t), 0, format))
+	obal.CalcAllAssets(p.cc.Get(schema.FigiUSD, t), 0)
+	fmt.Print(obal.ToString(t.Format("2006/01/02"), format))
 }
 
 func (p *Portfolio) ListBalances(start time.Time, period, format string) {

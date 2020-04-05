@@ -16,6 +16,22 @@ type config struct {
 	token, sideOps, period, format, acc string
 
 	start, at time.Time
+
+	startSet bool
+}
+
+func parseDate(s string, def time.Time) (time.Time, bool) {
+	if s == "" {
+		return def, false
+	}
+
+	t, err := time.Parse("2006/01/02", s)
+	if err != nil {
+		usage()
+		log.Fatalf("unrecognized date %s", s)
+	}
+
+	return t, true
 }
 
 func parseCmdline() (string, config) {
@@ -25,6 +41,9 @@ func parseCmdline() (string, config) {
 	}
 
 	cfg := config{}
+
+	// --------------
+	// Verify command
 
 	cmd := os.Args[1]
 	cmds := map[string]bool{
@@ -38,6 +57,9 @@ func parseCmdline() (string, config) {
 		usage()
 		log.Fatalf("unknown command %s", cmd)
 	}
+
+	// ------------
+	// List options
 
 	fs := flag.NewFlagSet("", flag.ExitOnError)
 	token := fs.String("token", "", "API token")
@@ -56,6 +78,9 @@ func parseCmdline() (string, config) {
 	cfg.sideOps = *sideOps
 	cfg.period = *period
 
+	// ----------------
+	// Verify log level
+
 	loglevels := map[string]log.Level{
 		"none":  log.InfoLevel,
 		"debug": log.DebugLevel,
@@ -67,6 +92,9 @@ func parseCmdline() (string, config) {
 
 	log.SetLevel(loglevels[*loglevel])
 
+	// -------------
+	// Verify format
+
 	formats := map[string]bool{
 		"human": true,
 		"table": true,
@@ -75,6 +103,9 @@ func parseCmdline() (string, config) {
 		log.Fatalf("bad format %s", *format)
 	}
 	cfg.format = *format
+
+	// --------------
+	// Verify account
 
 	accs := map[string]bool{
 		"broker": true,
@@ -86,23 +117,11 @@ func parseCmdline() (string, config) {
 	}
 	cfg.acc = *acc
 
-	if *start != "" {
-		var err error
-		cfg.start, err = time.Parse("2006/01/02", *start)
-		if err != nil {
-			usage()
-			log.Fatalf("unrecognized date %s", *start)
-		}
-	}
+	// ----------------------
+	// Parse and verify times
 
-	if *atTime != "" {
-		var err error
-		cfg.at, err = time.Parse("2006/01/02", *atTime)
-		if err != nil {
-			usage()
-			log.Fatalf("unrecognized date %s", *atTime)
-		}
-	}
+	cfg.start, cfg.startSet = parseDate(*start, time.Now().AddDate(-1, 0, 0))
+	cfg.at, _ = parseDate(*atTime, time.Now())
 
 	return cmd, cfg
 }
@@ -146,27 +165,24 @@ func main() {
 		log.Fatal("no token provided")
 	}
 
+	c := client.NewClient(cfg.token)
+
 	if cmd == "sandbox" {
-		c := client.NewClient(cfg.token)
 		c.TrySandbox()
 		c.Stop()
 		return
 	}
 
-	c := client.NewClient(cfg.token)
 	port := portfolio.NewPortfolio(c, getAccountIds(c, cfg.acc), cfg.sideOps)
 
 	if cmd == "show" {
-		if cfg.at.IsZero() {
-			cfg.at = time.Now()
-		}
 		port.Collect(cfg.at)
 		port.Print()
 		return
 	}
 
 	if cmd == "deals" {
-		if !cfg.start.IsZero() {
+		if cfg.startSet {
 			port.ListDeals(cfg.start)
 			return
 		}
@@ -191,9 +207,6 @@ func main() {
 	}
 
 	if cmd == "story" {
-		if cfg.start.IsZero() {
-			cfg.start = time.Now().AddDate(-1, 0, 0)
-		}
 		port.ListBalances(cfg.start, cfg.period, cfg.format)
 		return
 	}

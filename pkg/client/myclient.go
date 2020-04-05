@@ -111,6 +111,7 @@ func (c *MyClient) RequestByFigi(figi string) schema.Instrument {
 		Figi:      resp.Payload.Figi,
 		Ticker:    resp.Payload.Ticker,
 		Name:      resp.Payload.Name,
+		Currency:  resp.Payload.Currency,
 		FaceValue: int(resp.Payload.FaceValue),
 	}
 }
@@ -139,6 +140,7 @@ func (c *MyClient) RequestByTicker(ticker string) schema.Instrument {
 		Figi:      resp.Payload.Instruments[0].Figi,
 		Ticker:    resp.Payload.Instruments[0].Ticker,
 		Name:      resp.Payload.Instruments[0].Name,
+		Currency:  resp.Payload.Instruments[0].Currency,
 		FaceValue: int(resp.Payload.Instruments[0].FaceValue),
 	}
 }

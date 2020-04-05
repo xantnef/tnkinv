@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -15,7 +16,9 @@ import (
 type config struct {
 	token, sideOps, period, format, acc string
 
-	start, at time.Time
+	tickers []string
+
+	start, end, at time.Time
 
 	startSet bool
 }
@@ -51,6 +54,7 @@ func parseCmdline() (string, config) {
 		"show":    true,
 		"story":   true,
 		"deals":   true,
+		"price":   true,
 	}
 
 	if !cmds[cmd] {
@@ -70,13 +74,18 @@ func parseCmdline() (string, config) {
 
 	period := fs.String("period", "month", "story period")
 	start := fs.String("start", "", "starting point in time (format: 1922/12/28; default: year ago)")
+	end := fs.String("end", "", "end point in time (format: 1922/12/28; default: now)")
 	atTime := fs.String("at", "", "point in time (default: now). Not supported yet")
+	tickers := fs.String("tickers", "", "list of tickers")
 
 	fs.Parse(os.Args[2:])
 
 	cfg.token = *token
 	cfg.sideOps = *sideOps
 	cfg.period = *period
+	if *tickers != "" {
+		cfg.tickers = strings.Split(*tickers, ",")
+	}
 
 	// ----------------
 	// Verify log level
@@ -121,6 +130,7 @@ func parseCmdline() (string, config) {
 	// Parse and verify times
 
 	cfg.start, cfg.startSet = parseDate(*start, time.Now().AddDate(-1, 0, 0))
+	cfg.end, _ = parseDate(*end, time.Now())
 	cfg.at, _ = parseDate(*atTime, time.Now())
 
 	return cmd, cfg
@@ -140,6 +150,9 @@ func usage() {
 		"\t            [--period day|week|month (default: month)] \n" +
 		"\t     deals  [--start 1901/01/01 (default: none)] \n" +
 		"\t            [--period day|week|month|all (default: month)] \n" +
+		"\t     price  --tickers ticker1,ticker2,.. \n" +
+		"\t            [--start 1901/01/01 (default: year ago)] \n" +
+		"\t            [--end 1902/02/02 (default: now)] \n" +
 		"\t     sandbox \n")
 }
 
@@ -170,6 +183,11 @@ func main() {
 	if cmd == "sandbox" {
 		c.TrySandbox()
 		c.Stop()
+		return
+	}
+
+	if cmd == "price" {
+		portfolio.GetPrices(c, cfg.tickers, cfg.start, cfg.end)
 		return
 	}
 

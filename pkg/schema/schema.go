@@ -28,6 +28,7 @@ type Instrument struct {
 	Figi      string `json:"figi"`
 	Ticker    string `json:"ticker"`
 	Name      string `json:"name"`
+	Currency  string `json:"currency"`
 	FaceValue int    `json:"faceValue"`
 
 	Type    InsType

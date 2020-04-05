@@ -197,20 +197,8 @@ func (p *Portfolio) addPosition(op schema.Operation) *schema.PositionInfo {
 
 		AccumulatedIncome: schema.NewCValue(0, op.Currency),
 	}
-	pinfo.Ins.Type = op.InstrumentType // TODO
+	pinfo.Ins.Type = getInstrumentType(op.InstrumentType, pinfo.Ins.Ticker)
 
-	// catch unhandled
-	{
-		m := map[string]bool{
-			schema.InsTypeEtf:      true,
-			schema.InsTypeStock:    true,
-			schema.InsTypeBond:     true,
-			schema.InsTypeCurrency: true,
-		}
-		if !m[pinfo.Ins.Type] {
-			log.Warnf("Unhandled type %s: %s", pinfo.Ins.Ticker, pinfo.Ins.Type)
-		}
-	}
 	p.positions[op.Figi] = pinfo
 	return pinfo
 }
@@ -497,36 +485,6 @@ func (p *Portfolio) getYield(figi string, t1, t2 time.Time) float64 {
 	return p2/p1*100 - 100
 }
 
-func (p *Portfolio) getBenchmark(ticker, typ, currency string) string {
-	if typ == schema.InsTypeBond {
-		if currency == "RUB" {
-			return "FXRB"
-		}
-		// eurobond.. dont even know
-		return ""
-	}
-
-	if typ == schema.InsTypeStock {
-		if currency == "RUB" {
-			return "FXRL"
-		}
-
-		// sorry thats all I personally had so far ;)
-		fxitTickers := map[string]bool{
-			"MSFT": true,
-			"NVDA": true,
-		}
-
-		if fxitTickers[ticker] {
-			return "FXIT"
-		}
-
-		return "FXUS"
-	}
-
-	return ""
-}
-
 func (p *Portfolio) makePortionYields(pinfo *schema.PositionInfo) {
 	for _, po := range pinfo.Portions {
 		var expense float64
@@ -559,7 +517,7 @@ func (p *Portfolio) makePortionYields(pinfo *schema.PositionInfo) {
 		po.Balance.Value -= expense
 
 		// now compare with the market ETF
-		bench := p.getBenchmark(pinfo.Ins.Ticker, pinfo.Ins.Type, po.Balance.Currency)
+		bench := getBenchmark(pinfo.Ins.Ticker, pinfo.Ins.Type, po.Balance.Currency)
 		if bench != "" {
 			po.YieldMarket = p.getYield(p.insByTicker(bench).Figi, po.AvgDate, po.Close.Date)
 		}
@@ -618,8 +576,8 @@ func (p *Portfolio) processOperations(cb func(*schema.Balance, time.Time) bool) 
 	return bal
 }
 
-func (p *Portfolio) openDealsBalancePerType(time time.Time) map[string]*schema.Balance {
-	m := make(map[string]*schema.Balance)
+func (p *Portfolio) openDealsBalancePerType(time time.Time) map[schema.InsType]*schema.Balance {
+	m := make(map[schema.InsType]*schema.Balance)
 	total := schema.NewBalance()
 	m[""] = total
 

@@ -39,7 +39,7 @@ func (p *Portfolio) Print() {
 		fmt.Printf("    %s:\n", currency) // TODO currency percentage
 
 		types := []*schema.Balance{p.funds, p.stocks, p.bonds, p.cash}
-		names := []string{schema.InsTypeEtf, schema.InsTypeStock, schema.InsTypeBond, "Cash"}
+		names := []schema.InsType{schema.InsTypeEtf, schema.InsTypeStock, schema.InsTypeBond, "Cash"}
 
 		for i, t := range types {
 			if t == nil {

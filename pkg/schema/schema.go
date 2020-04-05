@@ -4,20 +4,22 @@ import (
 	"time"
 )
 
+type InsType string
+
 const (
-	InsTypeEtf      = "Etf"
-	InsTypeBond     = "Bond"
-	InsTypeStock    = "Stock"
-	InsTypeCurrency = "Currency"
+	InsTypeEtf      InsType = "Etf"
+	InsTypeBond             = "Bond"
+	InsTypeStock            = "Stock"
+	InsTypeCurrency         = "Currency"
 )
 
 type Instrument struct {
-	Figi   string `json:"figi"`
-	Ticker string `json:"ticker"`
-	Name   string `json:"name"`
-	Type   string `json:"instrumentType"`
+	Figi      string `json:"figi"`
+	Ticker    string `json:"ticker"`
+	Name      string `json:"name"`
+	FaceValue int    `json:"faceValue"`
 
-	FaceValue int `json:"faceValue"`
+	Type InsType
 }
 
 type PortfolioResponse struct {

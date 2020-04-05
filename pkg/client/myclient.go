@@ -129,6 +129,10 @@ func (c *MyClient) RequestByTicker(ticker string) schema.Instrument {
 		log.Fatalf("by ticker(%s): %s", ticker, err)
 	}
 
+	if len(resp.Payload.Instruments) == 0 {
+		log.Fatalf("no ticker %s", ticker)
+	}
+
 	log.Trace(string(body))
 
 	return schema.Instrument{

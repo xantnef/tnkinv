@@ -79,14 +79,6 @@ func (cc *CandleCache) fetchPeriod(figi string) {
 
 	pcandles := cc.fetchCandles(figi, cc.start, now, cc.period)
 	cc.cache[figi] = sortCandles(append(cc.cache[figi], pcandles...))
-
-	// with large period, the last candle might stand too far away
-	if cc.period != "day" {
-		lastCandleTime := pcandles[len(pcandles)-1].TimeParsed
-		if now.Sub(lastCandleTime) > 24*time.Hour {
-			cc.GetOnDay(figi, now)
-		}
-	}
 }
 
 func (cc *CandleCache) findInCache(figi string, t time.Time, exact bool) (float64, error) {
@@ -113,7 +105,7 @@ func (cc *CandleCache) findInCache(figi string, t time.Time, exact bool) (float6
 	})
 
 	if idx < len(pcandles) {
-		return logAndRet(pcandles[idx], true)
+		return logAndRet(pcandles[idx], false)
 	}
 
 	if exact {

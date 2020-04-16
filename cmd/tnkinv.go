@@ -149,6 +149,7 @@ func usage() {
 		"\t     story  [--start 1901/01/01 (default: year ago)] \n" +
 		"\t            [--period day|week|month (default: month)] \n" +
 		"\t     deals  [--start 1901/01/01 (default: none)] \n" +
+		"\t            [--end 1902/02/02 (default: now)] \n" +
 		"\t            [--period day|week|month|all (default: month)] \n" +
 		"\t     price  --tickers ticker1,ticker2,.. \n" +
 		"\t            [--start 1901/01/01 (default: year ago)] \n" +
@@ -201,7 +202,7 @@ func main() {
 
 	if cmd == "deals" {
 		if cfg.startSet {
-			port.ListDeals(cfg.start)
+			port.ListDeals(cfg.start, cfg.end)
 			return
 		}
 
@@ -220,7 +221,7 @@ func main() {
 			since = time.Time{}
 		}
 
-		port.ListDeals(since)
+		port.ListDeals(since, cfg.end)
 		return
 	}
 

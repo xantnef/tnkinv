@@ -665,7 +665,7 @@ func (p *Portfolio) Collect(at time.Time) {
 
 // =============================================================================
 
-func (p *Portfolio) ListDeals(start time.Time) {
+func (p *Portfolio) ListDeals(start, end time.Time) {
 	empty := true
 
 	p.processPortfolio()
@@ -675,6 +675,10 @@ func (p *Portfolio) ListDeals(start time.Time) {
 	deals := schema.NewBalance()
 	comms := schema.NewBalance()
 	for _, op := range p.data.ops {
+		if op.DateParsed.After(end) {
+			break
+		}
+
 		if op.Status != "Done" {
 			// cancelled declined etc
 			// noone is interested in that

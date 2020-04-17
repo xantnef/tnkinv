@@ -510,10 +510,24 @@ func (p *Portfolio) makeOpenDeal(pinfo *schema.PositionInfo, date time.Time, set
 	return deal
 }
 
-func (p *Portfolio) getYield(figi string, t1, t2 time.Time) float64 {
-	p1 := p.cc.Get(figi, t1)
-	p2 := p.cc.Get(figi, t2)
-	return p2/p1*100 - 100
+func (p *Portfolio) getYield(ins schema.Instrument, curr string, t1, t2 time.Time) float64 {
+	p1 := p.cc.Get(ins.Figi, t1)
+	p2 := p.cc.Get(ins.Figi, t2)
+
+	if ins.Currency != curr {
+		usd1 := p.cc.Get(schema.FigiUSD, t1)
+		usd2 := p.cc.Get(schema.FigiUSD, t2)
+
+		if ins.Currency == "RUB" {
+			p1 /= usd1
+			p2 /= usd2
+		} else {
+			p1 *= usd1
+			p2 *= usd2
+		}
+	}
+
+	return (p2/p1 - 1) * 100
 }
 
 func calcYield(asset, expense, days float64) (yield, annual float64) {
@@ -557,7 +571,9 @@ func (p *Portfolio) makePortionYields(pinfo *schema.PositionInfo) {
 		// now compare with the market ETF
 		bench := getBenchmark(pinfo.Ins.Ticker, pinfo.Ins.Type, po.Balance.Currency)
 		if bench != "" {
-			po.YieldMarket = p.getYield(p.insByTicker(bench).Figi, po.AvgDate, po.Close.Date)
+			po.YieldMarket =
+				p.getYield(p.insByTicker(bench), po.Balance.Currency,
+					po.AvgDate, po.Close.Date)
 		}
 	}
 }

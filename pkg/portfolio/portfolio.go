@@ -516,11 +516,21 @@ func (p *Portfolio) getYield(figi string, t1, t2 time.Time) float64 {
 	return p2/p1*100 - 100
 }
 
+func calcYield(asset, expense, days float64) (yield, annual float64) {
+	yield = asset / expense // [0..inf)
+	annual = math.Pow(yield, 365/days)
+
+	// to actual yield percentage
+	yield = (yield - 1) * 100
+	annual = (annual - 1) * 100
+	return
+}
+
 func (p *Portfolio) makePortionYields(pinfo *schema.PositionInfo) {
 	for _, po := range pinfo.Portions {
 		var expense float64
 
-		profit := schema.NewCValue(-po.Close.Value(), po.Close.Price.Currency)
+		value := -po.Close.Value()
 
 		for _, div := range pinfo.Dividends {
 			if div.Date.Before(po.Buys[0].Date) {
@@ -530,7 +540,7 @@ func (p *Portfolio) makePortionYields(pinfo *schema.PositionInfo) {
 				// TODO not quite right. Dividends come with delay
 				continue
 			}
-			profit.Value += div.Value
+			value += div.Value
 		}
 
 		for _, deal := range po.Buys {
@@ -539,13 +549,10 @@ func (p *Portfolio) makePortionYields(pinfo *schema.PositionInfo) {
 		}
 		expense += -po.Close.Commission
 
-		po.Yield = profit.Div(expense / 100)
-		po.Yield.Value -= 100
+		po.Yield, po.YieldAnnual = calcYield(value, expense, po.Close.Date.Sub(po.AvgDate).Hours()/24)
 
-		po.YieldAnnual = po.Yield.Value * 365 / (po.Close.Date.Sub(po.AvgDate).Hours() / 24)
-
-		po.Balance = profit
-		po.Balance.Value -= expense
+		po.Balance.Value = value - expense
+		po.Balance.Currency = po.Close.Price.Currency
 
 		// now compare with the market ETF
 		bench := getBenchmark(pinfo.Ins.Ticker, pinfo.Ins.Type, po.Balance.Currency)

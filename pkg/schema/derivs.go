@@ -20,17 +20,17 @@ func PriceCurry0(f1 Pricef1, figi string) Pricef0 {
 // =============================================================================
 
 const (
-	FigiUSD = "BBG0013HGFT4" // ticker for USD buys
+	FigiUSD = "BBG0013HGFT4"
 )
 
 /* const */
-var Currencies map[string]bool = map[string]bool{
+var Currencies = map[string]bool{
 	"USD": true,
 	"RUB": true,
 	"EUR": true,
 }
 
-var CurrenciesOrdered []string = []string{"USD", "EUR", "RUB"}
+var CurrenciesOrdered = [...]string{"USD", "EUR", "RUB"}
 
 type CValue struct {
 	Currency string
@@ -69,6 +69,11 @@ func (cv CValue) Copy() *CValue {
 }
 
 // =============================================================================
+
+func balanceMaps() []string {
+	lst := []string{"all"}
+	return append(lst, CurrenciesOrdered[:]...)
+}
 
 type CurMap map[string]*CValue
 
@@ -111,7 +116,7 @@ func (b *Balance) Foreach(f func(string, CurMap)) {
 func (b *Balance) Copy() *Balance {
 	copy := NewBalance()
 
-	for cur := range b.Payins {
+	for _, cur := range balanceMaps() {
 		copy.Payins[cur] = b.Payins[cur].Copy()
 		copy.Assets[cur] = b.Assets[cur].Copy()
 		copy.Commissions[cur] = b.Commissions[cur].Copy()
@@ -121,7 +126,7 @@ func (b *Balance) Copy() *Balance {
 }
 
 func (b *Balance) Add(b2 Balance) {
-	for cur := range b.Payins {
+	for _, cur := range balanceMaps() {
 		b.Payins[cur].Value += b2.Payins[cur].Value
 		b.Assets[cur].Value += b2.Assets[cur].Value
 		b.Commissions[cur].Value += b2.Commissions[cur].Value
@@ -149,13 +154,11 @@ const (
 func (b Balance) ToString(prefix string, style string) (s string) {
 	actualCurrencies := []string{}
 
-	for _, cur := range CurrenciesOrdered {
+	for _, cur := range balanceMaps() {
 		if b.Payins[cur].Value != 0 {
 			actualCurrencies = append(actualCurrencies, cur)
 		}
 	}
-
-	actualCurrencies = append(actualCurrencies, "all")
 
 	if style == TableStyle {
 		s += fmt.Sprintf("%s: ", prefix)

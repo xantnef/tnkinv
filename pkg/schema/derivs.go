@@ -79,6 +79,7 @@ type CurMap map[string]*CValue
 
 type Balance struct {
 	Commissions, Payins, Assets CurMap
+	AvgDate                     time.Time
 }
 
 func NewBalance() *Balance {
@@ -125,7 +126,24 @@ func (b *Balance) Copy() *Balance {
 	return copy
 }
 
+func (b Balance) hasPayins() bool {
+	for _, cv := range b.Payins {
+		if cv.Value > 0 {
+			return true
+		}
+	}
+	return false
+}
+
 func (b *Balance) Add(b2 Balance) {
+	if b.hasPayins() {
+		if b2.hasPayins() {
+			log.Fatal("Cannot merge payins")
+		}
+	} else {
+		b.AvgDate = b2.AvgDate
+	}
+
 	for _, cur := range balanceMaps() {
 		b.Payins[cur].Value += b2.Payins[cur].Value
 		b.Assets[cur].Value += b2.Assets[cur].Value

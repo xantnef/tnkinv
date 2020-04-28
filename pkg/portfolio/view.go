@@ -30,15 +30,15 @@ func printBalance(sections map[schema.Section]*schema.Balance, total *schema.Bal
 		if prefix != "" {
 			s = prefix + ", "
 		}
-		s += fmt.Sprintf("%.0f, %.0f, %.0f, %.0f, %.0f, %.0f, %.0f",
-			p, a, d, bru, bus, sru, sus)
+		s += fmt.Sprintf("%.0f, %.0f, %.0f, %.0f, %.0f, %.0f, %.0f, %s",
+			p, a, d, bru, bus, sru, sus, total.AvgDate.Format("2006/01/02"))
 
 	} else {
 		if prefix != "" {
 			s = prefix + ": "
 		}
-		s += fmt.Sprintf("%9.0f -> %9.0f : %8.0f : bonds %2.0f+%2.0f%% stocks %2.0f+%2.0f%%",
-			p, a, d, bru, bus, sru, sus)
+		s += fmt.Sprintf("%9.0f -> %9.0f : %8.0f : bonds %2.0f+%2.0f%% stocks %2.0f+%2.0f%% : pd %s",
+			p, a, d, bru, bus, sru, sus, total.AvgDate.Format("2006/01/02"))
 	}
 	fmt.Println(s)
 }

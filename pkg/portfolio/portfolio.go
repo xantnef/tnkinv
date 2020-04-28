@@ -349,7 +349,13 @@ func addOpToBalance(bal *schema.Balance, op schema.Operation, cc *candles.Candle
 		bal.Payins[op.Currency].Value += op.Payment
 
 		// add total payin
-		bal.Payins["all"].Value += op.Payment * xchgrate(cc, op.Currency, op.DateParsed)
+		payin := op.Payment * xchgrate(cc, op.Currency, op.DateParsed)
+		if bal.Payins["all"].Value == 0 {
+			bal.AvgDate = op.DateParsed
+		} else {
+			bal.AvgDate = adjustDate(bal.AvgDate, op.DateParsed, bal.Payins["all"].Value, payin)
+		}
+		bal.Payins["all"].Value += payin
 
 	} else if op.OperationType == "ServiceCommission" {
 
@@ -397,6 +403,13 @@ func (p *Portfolio) getOpenPortion(pinfo *schema.PositionInfo) *schema.Portion {
 	return po
 }
 
+func adjustDate(avgT, newT time.Time, total, value float64) time.Time {
+	// TODO think again is this correct?
+	mult := value / total
+	biasDays := int(math.Round(newT.Sub(avgT).Hours() * mult / 24))
+	return avgT.AddDate(0, 0, biasDays)
+}
+
 func (p *Portfolio) addToPortions(pinfo *schema.PositionInfo, deal *schema.Deal) {
 	po := p.getOpenPortion(pinfo)
 	if po == nil {
@@ -413,13 +426,9 @@ func (p *Portfolio) addToPortions(pinfo *schema.PositionInfo, deal *schema.Deal)
 	if deal.Quantity > 0 { // buy
 		po.CheckNoSplitSells(pinfo.Ins.Ticker)
 
-		// TODO think again is this correct?
-		mult := deal.Value() / pinfo.OpenSpent
+		po.AvgDate = adjustDate(po.AvgDate, deal.Date, pinfo.OpenSpent, deal.Value())
 
-		biasDays := int(math.Round(deal.Date.Sub(po.AvgDate).Hours() * mult / 24))
-		po.AvgDate.AddDate(0, 0, biasDays)
-
-		po.AvgPrice.Value = deal.Price.Value*mult + po.AvgPrice.Value*(1-mult)
+		//po.AvgPrice.Value = deal.Price.Value*mult + po.AvgPrice.Value*(1-mult)
 		po.Buys = append(po.Buys, deal)
 
 	} else { // sell

@@ -2,6 +2,7 @@ package portfolio
 
 import (
 	"fmt"
+	"math"
 	"sort"
 
 	"../schema"
@@ -20,10 +21,10 @@ func printBalance(sections map[schema.Section]*schema.Balance, total *schema.Bal
 		return 100 * bal.Assets["all"].Value / a
 	}
 
-	bru, bus, sru, sus := sectionShare(schema.BondRub),
-		sectionShare(schema.BondUsd),
-		sectionShare(schema.StockRub),
-		sectionShare(schema.StockUsd)
+	bru, bus, sru, sus := math.Round(sectionShare(schema.BondRub)),
+		math.Round(sectionShare(schema.BondUsd)),
+		math.Round(sectionShare(schema.StockRub)),
+		math.Round(sectionShare(schema.StockUsd))
 
 	s := ""
 	if style == schema.TableStyle {
@@ -37,7 +38,7 @@ func printBalance(sections map[schema.Section]*schema.Balance, total *schema.Bal
 		if prefix != "" {
 			s = prefix + ": "
 		}
-		s += fmt.Sprintf("%9.0f -> %9.0f : %8.0f : bonds %2.0f+%2.0f%% stocks %2.0f+%2.0f%% : pd %s",
+		s += fmt.Sprintf("%7.0f -> %7.0f : %6.0f : bonds %2.0f+%2.0f%% stocks %2.0f+%2.0f%% : pd %s",
 			p, a, d, bru, bus, sru, sus, total.AvgDate.Format("2006/01/02"))
 	}
 	fmt.Println(s)

@@ -69,6 +69,12 @@ func getSection(ticker string, typ schema.InsType, currency string) schema.Secti
 			"VTBB": schema.BondRub,
 			"FXRB": schema.BondRub,
 
+			// T* funds are (25x4 gold, stocks, long and short bonds)
+			// TODO proper accounting
+			// consider them bonds for now
+			"TRUR": schema.BondRub,
+			"TUSD": schema.BondUsd,
+
 			"FXRU": schema.BondUsd,
 
 			"SBMX": schema.StockRub,

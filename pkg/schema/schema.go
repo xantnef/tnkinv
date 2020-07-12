@@ -150,8 +150,6 @@ type Candle struct {
 	O        float64 `json:"o"`
 	Time     string  `json:"time"`
 	V        float64 `json:"v"`
-	// Added fields below
-	TimeParsed time.Time `json:"-"`
 }
 
 type CandlesResponse struct {

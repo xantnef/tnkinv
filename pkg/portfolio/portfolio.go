@@ -808,6 +808,4 @@ func (p *Portfolio) ListBalances(start time.Time, period, format string) {
 		nextTime := candleTimes[cidx]
 		p.summarize(*bal, nextTime, format)
 	}
-
-	p.summarize(*bal, time.Now().Add(24*time.Hour), format)
 }

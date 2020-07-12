@@ -11,13 +11,18 @@ import (
 	"../schema"
 )
 
+type candle struct {
+	price float64
+	time  time.Time
+}
+
 type CandleCache struct {
 	client *client.MyClient
 	start  time.Time
 	period string
 
-	periodFetched map[string]bool            // key=figi
-	cache         map[string][]schema.Candle // key=figi
+	periodFetched map[string]bool     // key=figi
+	cache         map[string][]candle // key=figi
 }
 
 func NewCandleCache(c *client.MyClient, start time.Time, period string) *CandleCache {
@@ -27,12 +32,29 @@ func NewCandleCache(c *client.MyClient, start time.Time, period string) *CandleC
 		period: period,
 
 		periodFetched: make(map[string]bool),
-		cache:         make(map[string][]schema.Candle),
+		cache:         make(map[string][]candle),
 	}
 }
 
-func (cc *CandleCache) fetchCandles(figi string, start, end time.Time, period string) []schema.Candle {
-	resp := cc.client.RequestCandles(figi, start, end, period)
+func strToDuration(s string) time.Duration {
+	switch s {
+	case "day":
+		return 24 * time.Hour
+	case "week":
+		return 7 * 24 * time.Hour
+	case "month":
+		return 365 * 24 * time.Hour / 12
+	case "year":
+		return 365 * 24 * time.Hour
+	default:
+		log.Fatalf("Unknown period %s", s)
+		return 0
+	}
+}
+
+func (cc *CandleCache) fetchCandles(figi string, start, end time.Time, period string) (clist []candle) {
+	adjustment := 2 * strToDuration(period)
+	resp := cc.client.RequestCandles(figi, start.Add(-adjustment), end, period)
 	pcandles := resp.Payload.Candles
 
 	// TODO
@@ -44,27 +66,39 @@ func (cc *CandleCache) fetchCandles(figi string, start, end time.Time, period st
 	//   3. amortized to 880
 	// candle for the time point (1) is going to show 800.
 
-	if len(pcandles) == 0 {
+	if len(pcandles) < 2 {
 		log.Infof("No candles for period %s - %s", start, end)
 		return cc.fetchCandles(figi, start.Add(-24*time.Hour), end, period)
 	}
 
-	for i := range pcandles {
-		var err error
-		c := &pcandles[i]
+	for _, p := range pcandles {
+		log.Debugf("<c> %s %s %.2f %.2f", figi, p.Time, p.O, p.C)
+	}
 
-		c.TimeParsed, err = time.Parse(time.RFC3339, c.Time)
+	for i := 1; i < len(pcandles); i++ {
+		var err error
+		var c candle
+
+		c.price = pcandles[i-1].C
+		c.time, err = time.Parse(time.RFC3339, pcandles[i].Time)
 		if err != nil {
 			log.Fatal("failed to parse time %v", err)
 		}
+
+		clist = append(clist, c)
 	}
 
-	return pcandles
+	clist = append(clist, candle{
+		time:  end,
+		price: pcandles[len(pcandles)-1].C,
+	})
+
+	return clist
 }
 
-func sortCandles(pcandles []schema.Candle) []schema.Candle {
+func sortCandles(pcandles []candle) []candle {
 	sort.Slice(pcandles, func(i, j int) bool {
-		return pcandles[i].TimeParsed.Before(pcandles[j].TimeParsed)
+		return pcandles[i].time.Before(pcandles[j].time)
 	})
 	return pcandles
 }
@@ -82,16 +116,10 @@ func (cc *CandleCache) fetchPeriod(figi string) {
 }
 
 func (cc *CandleCache) findInCache(figi string, t time.Time, exact bool) (float64, error) {
-	logAndRet := func(c schema.Candle, isOpening bool) (float64, error) {
-		if isOpening {
-			log.Debugf("price(%s on %s): returning opening on %s = %f",
-				figi, t, c.Time, c.O)
-			return c.O, nil
-		} else {
-			log.Debugf("price(%s on %s): returning closing on %s = %f",
-				figi, t, c.Time, c.C)
-			return c.C, nil
-		}
+	logAndRet := func(c candle) (float64, error) {
+		log.Debugf("price(%s on %s) = %s : %f",
+			figi, t, c.time, c.price)
+		return c.price, nil
 	}
 
 	pcandles, exist := cc.cache[figi]
@@ -100,36 +128,37 @@ func (cc *CandleCache) findInCache(figi string, t time.Time, exact bool) (float6
 	}
 
 	idx := sort.Search(len(pcandles), func(i int) bool {
-		return pcandles[i].TimeParsed.Year() == t.Year() &&
-			pcandles[i].TimeParsed.YearDay() == t.YearDay()
+		return pcandles[i].time.Year() == t.Year() &&
+			pcandles[i].time.YearDay() == t.YearDay()
 	})
 
 	if idx < len(pcandles) {
-		return logAndRet(pcandles[idx], false)
+		return logAndRet(pcandles[idx])
 	}
 
 	if exact {
 		return 0, errors.New("exact date not found")
 	}
 
+	// idx = first element after date X
 	idx = sort.Search(len(pcandles), func(i int) bool {
-		return pcandles[i].TimeParsed.After(t)
+		return pcandles[i].time.After(t)
 	})
 
 	if idx == 0 {
 		// all candles are after
-		return logAndRet(pcandles[0], true)
+		return 0, errors.New("date is too early")
 	}
 
 	if idx == len(pcandles) {
 		// all candles are before
-		return logAndRet(pcandles[len(pcandles)-1], false)
+		return 0, errors.New("date is too late")
 	}
 
-	if t.Sub(pcandles[idx-1].TimeParsed) < pcandles[idx].TimeParsed.Sub(t) {
-		return logAndRet(pcandles[idx-1], false)
+	if t.Sub(pcandles[idx-1].time) < pcandles[idx].time.Sub(t) {
+		return logAndRet(pcandles[idx-1])
 	} else {
-		return logAndRet(pcandles[idx], true)
+		return logAndRet(pcandles[idx])
 	}
 }
 
@@ -178,7 +207,7 @@ func (cc *CandleCache) GetOnDay(figi string, t time.Time) float64 {
 func (cc *CandleCache) ListTimes() (times []time.Time) {
 	cc.fetchPeriod(schema.FigiUSD)
 	for _, c := range cc.cache[schema.FigiUSD] {
-		times = append(times, c.TimeParsed)
+		times = append(times, c.time)
 	}
 	return
 }

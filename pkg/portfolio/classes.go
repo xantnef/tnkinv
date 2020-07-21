@@ -83,6 +83,8 @@ func getSection(ticker string, typ schema.InsType, currency string) schema.Secti
 			"AKNX": schema.StockUsd,
 			"FXIT": schema.StockUsd,
 			"FXUS": schema.StockUsd,
+			// it's actually StockEur, but leave it for now
+			"FXDE": schema.StockUsd,
 
 			"FXMM": schema.CashRub,
 			"FXTB": schema.CashUsd,

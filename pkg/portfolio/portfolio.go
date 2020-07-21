@@ -615,6 +615,8 @@ func (p *Portfolio) processOperations(cb func(*schema.Balance, time.Time) bool) 
 			break
 		}
 
+		log.Debugf("operation: %s", op)
+
 		if op.Figi != "" {
 			pinfo := p.positions[op.Figi]
 			deal := p.accountOperation(pinfo, op)

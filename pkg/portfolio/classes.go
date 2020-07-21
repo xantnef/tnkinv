@@ -3,6 +3,7 @@ package portfolio
 import (
 	log "github.com/sirupsen/logrus"
 
+	"../aux"
 	"../schema"
 )
 
@@ -30,12 +31,10 @@ func getBenchmark(ticker string, typ schema.InsType, currency string) string {
 	if bench, ok := m[string(typ)+currency]; ok {
 		if bench == "FXUS" {
 			// sorry thats all I personally had so far ;)
-			fxitTickers := map[string]bool{
-				"MSFT": true,
-				"NVDA": true,
-			}
-
-			if fxitTickers[ticker] {
+			if aux.IsIn(ticker,
+				"MSFT",
+				"NVDA",
+			) {
 				return "FXIT"
 			}
 		}

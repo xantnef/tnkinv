@@ -9,6 +9,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
+	"../pkg/aux"
 	"../pkg/client"
 	"../pkg/portfolio"
 )
@@ -49,15 +50,15 @@ func parseCmdline() (string, config) {
 	// Verify command
 
 	cmd := os.Args[1]
-	cmds := map[string]bool{
-		"sandbox": true,
-		"show":    true,
-		"story":   true,
-		"deals":   true,
-		"price":   true,
-	}
+	cmds := aux.NewList(
+		"sandbox",
+		"show",
+		"story",
+		"deals",
+		"price",
+	)
 
-	if !cmds[cmd] {
+	if !cmds.Has(cmd) {
 		usage()
 		log.Fatalf("unknown command %s", cmd)
 	}
@@ -104,11 +105,11 @@ func parseCmdline() (string, config) {
 	// -------------
 	// Verify format
 
-	formats := map[string]bool{
-		"human": true,
-		"table": true,
-	}
-	if !formats[*format] {
+	formats := aux.NewList(
+		"human",
+		"table",
+	)
+	if !formats.Has(*format) {
 		log.Fatalf("bad format %s", *format)
 	}
 	cfg.format = *format
@@ -116,12 +117,12 @@ func parseCmdline() (string, config) {
 	// --------------
 	// Verify account
 
-	accs := map[string]bool{
-		"broker": true,
-		"iis":    true,
-		"all":    true,
-	}
-	if !accs[*acc] {
+	accs := aux.NewList(
+		"broker",
+		"iis",
+		"all",
+	)
+	if !accs.Has(*acc) {
 		log.Fatalf("bad account type %s", *acc)
 	}
 	cfg.acc = *acc

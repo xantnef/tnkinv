@@ -5,6 +5,8 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
+
+	"../aux"
 )
 
 type Pricef0 func() float64
@@ -24,11 +26,11 @@ const (
 )
 
 /* const */
-var Currencies = map[string]bool{
-	"USD": true,
-	"RUB": true,
-	"EUR": true,
-}
+var Currencies = aux.NewList(
+	"USD",
+	"RUB",
+	"EUR",
+)
 
 var CurrenciesOrdered = [...]string{"USD", "EUR", "RUB"}
 
@@ -38,7 +40,7 @@ type CValue struct {
 }
 
 func NewCValue(val float64, currency string) CValue {
-	if !Currencies[currency] {
+	if !Currencies.Has(currency) {
 		log.Fatalf("unknown currency %s", currency)
 	}
 

@@ -7,6 +7,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
+	"../aux"
 	"../client"
 	"../schema"
 )
@@ -21,7 +22,7 @@ type CandleCache struct {
 	start  time.Time
 	period string
 
-	periodFetched map[string]bool     // key=figi
+	periodFetched aux.List            // key=figi
 	cache         map[string][]candle // key=figi
 }
 
@@ -31,7 +32,7 @@ func NewCandleCache(c *client.MyClient, start time.Time, period string) *CandleC
 		start:  start,
 		period: period,
 
-		periodFetched: make(map[string]bool),
+		periodFetched: aux.NewList(),
 		cache:         make(map[string][]candle),
 	}
 }
@@ -104,10 +105,10 @@ func sortCandles(pcandles []candle) []candle {
 }
 
 func (cc *CandleCache) fetchPeriod(figi string) {
-	if cc.periodFetched[figi] {
+	if cc.periodFetched.Has(figi) {
 		return
 	}
-	cc.periodFetched[figi] = true
+	cc.periodFetched.Add(figi)
 
 	now := time.Now()
 

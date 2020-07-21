@@ -8,6 +8,12 @@ import (
 	"../schema"
 )
 
+func printBalanceHead(style string) {
+	if style == schema.TableStyle {
+		fmt.Println("payins, assets, delta, bonds.rub, bonds.usd, stocks.rub, stocks.usd, pivotdate")
+	}
+}
+
 func printBalance(sections map[schema.Section]*schema.Balance, total *schema.Balance, prefix, style string) {
 	p, a := total.Payins["all"].Value, total.Assets["all"].Value
 	d := a - p
@@ -38,7 +44,7 @@ func printBalance(sections map[schema.Section]*schema.Balance, total *schema.Bal
 		if prefix != "" {
 			s = prefix + ": "
 		}
-		s += fmt.Sprintf("%7.0f -> %7.0f : %6.0f : bonds %2.0f+%2.0f%% stocks %2.0f+%2.0f%% : pd %s",
+		s += fmt.Sprintf("%7.0f -> %7.0f : %6.0f : bonds(R+U) %2.0f+%2.0f%% stocks %2.0f+%2.0f%% : pd %s",
 			p, a, d, bru, bus, sru, sus, total.AvgDate.Format("2006/01/02"))
 	}
 	fmt.Println(s)

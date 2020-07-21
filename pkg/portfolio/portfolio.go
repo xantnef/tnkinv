@@ -789,6 +789,8 @@ func (p *Portfolio) ListBalances(start time.Time, period, format string) {
 		return
 	}
 
+	printBalanceHead(format)
+
 	bal := p.processOperations(func(bal *schema.Balance, opTime time.Time) bool {
 
 		// process all candles before opTime

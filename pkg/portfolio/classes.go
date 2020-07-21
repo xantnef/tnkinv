@@ -30,10 +30,16 @@ func getBenchmark(ticker string, typ schema.InsType, currency string) string {
 
 	if bench, ok := m[string(typ)+currency]; ok {
 		if bench == "FXUS" {
-			// sorry thats all I personally had so far ;)
 			if aux.IsIn(ticker,
-				"MSFT",
-				"NVDA",
+				"AAPL", // 18.1%
+				"MSFT", // 16.3%
+				"GOOG", //  9.6%
+				"FB",   //  6.2%
+				"V",    //  3.6%
+				"MA",   //  2.9%
+				"INTC", //  2.8%
+				"NVDA", //  2.6%
+				"NFLX", //  2.3%
 			) {
 				return "FXIT"
 			}

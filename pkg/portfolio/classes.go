@@ -54,6 +54,35 @@ func getBenchmark(ticker string, typ schema.InsType, currency string) string {
 	return ""
 }
 
+func getEtfSection(ticker string) (schema.Section, bool) {
+	m := map[string]schema.Section{
+		"VTBB": schema.BondRub,
+		"FXRB": schema.BondRub,
+
+		// T* funds are (25x4 gold, stocks, long and short bonds)
+		// TODO proper accounting
+		// consider them bonds for now
+		"TRUR": schema.BondRub,
+		"TUSD": schema.BondUsd,
+
+		"FXRU": schema.BondUsd,
+
+		"SBMX": schema.StockRub,
+		"FXRL": schema.StockRub,
+
+		"AKNX": schema.StockUsd,
+		"FXIT": schema.StockUsd,
+		"FXUS": schema.StockUsd,
+		// it's actually StockEur, but leave it for now
+		"FXDE": schema.StockUsd,
+
+		"FXMM": schema.CashRub,
+		"FXTB": schema.CashUsd,
+	}
+	s, ok := m[ticker]
+	return s, ok
+}
+
 func getSection(ticker string, typ schema.InsType, currency string) schema.Section {
 	m := map[string]schema.Section{
 		schema.InsTypeBond + "RUB": schema.BondRub,
@@ -70,34 +99,11 @@ func getSection(ticker string, typ schema.InsType, currency string) schema.Secti
 	}
 
 	if typ == schema.InsTypeEtf {
-		mt := map[string]schema.Section{
-			"VTBB": schema.BondRub,
-			"FXRB": schema.BondRub,
-
-			// T* funds are (25x4 gold, stocks, long and short bonds)
-			// TODO proper accounting
-			// consider them bonds for now
-			"TRUR": schema.BondRub,
-			"TUSD": schema.BondUsd,
-
-			"FXRU": schema.BondUsd,
-
-			"SBMX": schema.StockRub,
-			"FXRL": schema.StockRub,
-
-			"AKNX": schema.StockUsd,
-			"FXIT": schema.StockUsd,
-			"FXUS": schema.StockUsd,
-			// it's actually StockEur, but leave it for now
-			"FXDE": schema.StockUsd,
-
-			"FXMM": schema.CashRub,
-			"FXTB": schema.CashUsd,
+		s, ok := getEtfSection(ticker)
+		if !ok {
+			log.Warnf("Uncatched ETF %s", ticker)
 		}
-		if s, ok := mt[ticker]; ok {
-			return s
-		}
-		log.Warnf("Uncatched ETF %s", ticker)
+		return s
 	}
 
 	return ""

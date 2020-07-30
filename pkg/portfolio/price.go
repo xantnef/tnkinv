@@ -29,6 +29,16 @@ func GetPrices(c *client.MyClient, tickers []string, start, end time.Time) {
 			s += fmt.Sprintf(" (%.1f%% RUB; %.1f%% annual)",
 				aux.Ratio2Perc(p2/p1),
 				aux.Ratio2Perc(aux.RatioAnnual(p2/p1, end.Sub(start))))
+
+		} else if section, ok := getEtfSection(ticker); ok {
+
+			if cur := getSectionCurrency(section); cur == "USD" {
+				p1 /= cc.GetOnDay(schema.FigiUSD, start)
+				p2 /= cc.GetOnDay(schema.FigiUSD, end)
+				s += fmt.Sprintf(" (%.1f%% USD; %.1f%% annual)",
+					aux.Ratio2Perc(p2/p1),
+					aux.Ratio2Perc(aux.RatioAnnual(p2/p1, end.Sub(start))))
+			}
 		}
 
 		fmt.Println(s)

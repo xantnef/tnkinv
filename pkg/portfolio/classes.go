@@ -3,6 +3,8 @@ package portfolio
 import (
 	log "github.com/sirupsen/logrus"
 
+	"strings"
+
 	"../aux"
 	"../schema"
 )
@@ -51,6 +53,15 @@ func getBenchmark(ticker string, typ schema.InsType, currency string) string {
 		// ETF is benchmark itself
 	}
 
+	return ""
+}
+
+func getSectionCurrency(s schema.Section) string {
+	for cur := range schema.Currencies {
+		if strings.Contains(string(s), cur) {
+			return cur
+		}
+	}
 	return ""
 }
 

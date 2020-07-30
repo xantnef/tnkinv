@@ -12,6 +12,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
+	"../aux"
 	"../candles"
 	"../client"
 	"../schema"
@@ -539,13 +540,9 @@ func (p *Portfolio) getYield(ins schema.Instrument, curr string, t1, t2 time.Tim
 	return (p2/p1 - 1) * 100
 }
 
-func calcYield(asset, expense, days float64) (yield, annual float64) {
-	yield = asset / expense // [0..inf)
-	annual = math.Pow(yield, 365/days)
-
-	// to actual yield percentage
-	yield = (yield - 1) * 100
-	annual = (annual - 1) * 100
+func calcYield(asset, expense float64, delta time.Duration) (yield, annual float64) {
+	yield = aux.Ratio2Perc(asset / expense)
+	annual = aux.Ratio2Perc(aux.RatioAnnual(asset/expense, delta))
 	return
 }
 
@@ -572,7 +569,7 @@ func (p *Portfolio) makePortionYields(pinfo *schema.PositionInfo) {
 		}
 		expense += -po.Close.Commission
 
-		po.Yield, po.YieldAnnual = calcYield(value, expense, po.Close.Date.Sub(po.AvgDate).Hours()/24)
+		po.Yield, po.YieldAnnual = calcYield(value, expense, po.Close.Date.Sub(po.AvgDate))
 
 		po.Balance.Value = value - expense
 		po.Balance.Currency = po.Close.Price.Currency

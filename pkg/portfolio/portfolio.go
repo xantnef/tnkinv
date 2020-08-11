@@ -626,7 +626,9 @@ func (p *Portfolio) processOperations(cb func(*schema.Balance, time.Time) bool) 
 
 		addOpToBalance(bal, op, p.cc)
 
-		log.Debugf("new balance: %s", bal)
+		log.Debugf(" [%s] %s at %s (%f) new balance: %f",
+			op.OperationType, p.tryGetTicker(op.Figi),
+			op.DateParsed.Format("2006/01/02"), op.Payment, bal.Assets["RUB"].Value)
 	}
 
 	for _, pinfo := range p.positions {
@@ -636,6 +638,13 @@ func (p *Portfolio) processOperations(cb func(*schema.Balance, time.Time) bool) 
 	}
 
 	return bal
+}
+
+func (p *Portfolio) tryGetTicker(figi string) string {
+	if figi == "" {
+		return ""
+	}
+	return p.insByFigi(figi).Ticker
 }
 
 func (p *Portfolio) openDealsBalancePerSection(time time.Time) (sectionMap, *schema.Balance) {
@@ -802,6 +811,8 @@ func (p *Portfolio) ListBalances(start time.Time, period, format string) {
 
 		return true
 	})
+
+	log.Debugf("cash balance: %s", bal.Assets)
 
 	// process all candles after the last operation
 

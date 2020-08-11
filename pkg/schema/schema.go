@@ -54,6 +54,12 @@ type PortfolioResponse struct {
 	TrackingID string `json:"trackingId"`
 }
 
+/* Payment:
+ * buy: negative
+ * dividends, coupons: positive
+ * taxes: negative
+ * service commission: negative
+ */
 type Operation struct {
 	Commission     CValue
 	Currency       string  `json:"currency"`

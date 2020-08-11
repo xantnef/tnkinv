@@ -27,24 +27,24 @@ func printBalance(sections map[schema.Section]*schema.Balance, total *schema.Bal
 		return 100 * bal.Assets["all"].Value / a
 	}
 
-	bru, bus, sru, sus := math.Round(sectionShare(schema.BondRub)),
-		math.Round(sectionShare(schema.BondUsd)),
-		math.Round(sectionShare(schema.StockRub)),
-		math.Round(sectionShare(schema.StockUsd))
+	bru, bus, sru, sus := math.Round(sectionShare(schema.BondRub)*10)/10,
+		math.Round(sectionShare(schema.BondUsd)*10)/10,
+		math.Round(sectionShare(schema.StockRub)*10)/10,
+		math.Round(sectionShare(schema.StockUsd)*10)/10
 
 	s := ""
 	if style == schema.TableStyle {
 		if prefix != "" {
 			s = prefix + ", "
 		}
-		s += fmt.Sprintf("%.0f, %.0f, %.0f, %.0f, %.0f, %.0f, %.0f, %s",
+		s += fmt.Sprintf("%.0f, %.0f, %.0f, %.1f, %.1f, %.1f, %.1f, %s",
 			p, a, d, bru, bus, sru, sus, total.AvgDate.Format("2006/01/02"))
 
 	} else {
 		if prefix != "" {
 			s = prefix + ": "
 		}
-		s += fmt.Sprintf("%7.0f -> %7.0f : %6.0f : bonds(R+U) %2.0f+%2.0f%% stocks %2.0f+%2.0f%% : pd %s",
+		s += fmt.Sprintf("%7.0f -> %7.0f : %6.0f : bonds(R+U) %2.1f+%2.1f%% stocks %2.1f+%2.1f%% : pd %s",
 			p, a, d, bru, bus, sru, sus, total.AvgDate.Format("2006/01/02"))
 	}
 	fmt.Println(s)

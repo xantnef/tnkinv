@@ -80,12 +80,14 @@ func getEtfSection(ticker string) (schema.Section, bool) {
 
 		"SBMX": schema.StockRub,
 		"FXRL": schema.StockRub,
+		"TMOS": schema.StockRub,
 
 		"AKNX": schema.StockUsd,
 		"FXIT": schema.StockUsd,
 		"FXUS": schema.StockUsd,
 		// it's actually StockEur, but leave it for now
 		"FXDE": schema.StockUsd,
+		"TECH": schema.StockUsd,
 
 		"FXMM": schema.CashRub,
 		"FXTB": schema.CashUsd,

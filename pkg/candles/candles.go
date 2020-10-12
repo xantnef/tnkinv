@@ -26,15 +26,19 @@ type CandleCache struct {
 	cache         map[string][]candle // key=figi
 }
 
-func NewCandleCache(c *client.MyClient, start time.Time, period string) *CandleCache {
+func NewCandleCache(c *client.MyClient, start time.Time) *CandleCache {
 	return &CandleCache{
 		client: c,
 		start:  start,
-		period: period,
 
 		periodFetched: aux.NewList(),
 		cache:         make(map[string][]candle),
 	}
+}
+
+func (cc *CandleCache) WithPeriod(period string) *CandleCache {
+	cc.period = period
+	return cc
 }
 
 func strToDuration(s string) time.Duration {
@@ -68,7 +72,7 @@ func (cc *CandleCache) fetchCandles(figi string, start, end time.Time, period st
 	// candle for the time point (1) is going to show 800.
 
 	if len(pcandles) < 2 {
-		log.Infof("No candles for period %s - %s", start, end)
+		log.Debugf("No candles for period %s - %s", start, end)
 		return cc.fetchCandles(figi, start.Add(-24*time.Hour), end, period)
 	}
 
@@ -176,8 +180,11 @@ func (cc *CandleCache) findExactDate(figi string, t time.Time) (float64, error) 
 }
 
 func (cc *CandleCache) Get(figi string, t time.Time) float64 {
-	cc.fetchPeriod(figi)
-	return cc.find(figi, t)
+	if cc.period != "" {
+		cc.fetchPeriod(figi)
+		return cc.find(figi, t)
+	}
+	return cc.GetOnDay(figi, t)
 }
 
 func (cc *CandleCache) GetOnDay(figi string, t time.Time) float64 {

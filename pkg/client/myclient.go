@@ -202,7 +202,7 @@ func (c *MyClient) RequestCandles(figi string, t1, t2 time.Time, interval string
 
 	body, err := mktApi.MarketCandlesGet(nil, figi, t1Str, t2Str, interval)
 	if err != nil {
-		log.Fatalf("candles(%s, %s): %s", figi, t1, err)
+		log.Fatalf("candles(%s, %s : %s : %s): %s", figi, t1, interval, t2, err)
 	}
 
 	err = json.Unmarshal(body, &mktResp)

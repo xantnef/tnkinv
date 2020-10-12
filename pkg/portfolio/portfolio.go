@@ -688,7 +688,7 @@ func (p *Portfolio) Collect(at time.Time) {
 
 	cash := p.processOperations(func(bal *schema.Balance, opTime time.Time) bool {
 		once.Do(func() {
-			p.cc = candles.NewCandleCache(p.client, opTime, "week")
+			p.cc = candles.NewCandleCache(p.client, opTime)
 		})
 		return opTime.Before(at)
 	})
@@ -783,7 +783,7 @@ func (p *Portfolio) summarize( /* const */ bal schema.Balance, t time.Time, form
 func (p *Portfolio) ListBalances(start time.Time, period, format string) {
 	p.processPortfolio()
 
-	p.cc = candles.NewCandleCache(p.client, start, period)
+	p.cc = candles.NewCandleCache(p.client, start).WithPeriod(period)
 
 	candleTimes := p.cc.ListTimes()
 

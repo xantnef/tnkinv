@@ -522,24 +522,30 @@ func (p *Portfolio) makeOpenDeal(pinfo *schema.PositionInfo, date time.Time, set
 	return deal
 }
 
-func (p *Portfolio) getYield(ins schema.Instrument, curr string, t1, t2 time.Time) float64 {
-	p1 := p.cc.Get(ins.Figi, t1)
-	p2 := p.cc.Get(ins.Figi, t2)
+func priceInCurrency(cc *candles.CandleCache, ins schema.Instrument, curr string, t time.Time) float64 {
+	price := cc.Get(ins.Figi, t) * xchgrate(cc, ins.Currency, curr, t)
+	log.Debugf("%s at %s costs %f", ins.Ticker, t, price)
+	return price
+}
 
-	if ins.Currency != curr {
-		usd1 := p.cc.Get(schema.FigiUSD, t1)
-		usd2 := p.cc.Get(schema.FigiUSD, t2)
+func (p *Portfolio) getMarketYield(ins schema.Instrument, po *schema.Portion, expense float64) float64 {
+	curr := po.Close.Price.Currency
 
-		if ins.Currency == "RUB" {
-			p1 /= usd1
-			p2 /= usd2
-		} else {
-			p1 *= usd1
-			p2 *= usd2
-		}
+	bench := getBenchmark(ins.Ticker, ins.Type, curr)
+	if bench == "" {
+		return 0
 	}
 
-	return (p2/p1 - 1) * 100
+	bins := p.insByTicker(bench)
+	var pieces float64
+
+	for _, deal := range po.Buys {
+		pieces += deal.Value() / priceInCurrency(p.cc, bins, curr, deal.Date)
+	}
+
+	value := pieces * priceInCurrency(p.cc, bins, curr, po.Close.Date)
+
+	return aux.Ratio2Perc(value / expense)
 }
 
 func calcYield(asset, expense float64, delta time.Duration) (yield, annual float64) {
@@ -572,17 +578,11 @@ func (p *Portfolio) makePortionYields(pinfo *schema.PositionInfo) {
 		expense += -po.Close.Commission
 
 		po.Yield, po.YieldAnnual = calcYield(value, expense, po.Close.Date.Sub(po.AvgDate))
+		// compare with the market ETF
+		po.YieldMarket = p.getMarketYield(pinfo.Ins, po, expense)
 
 		po.Balance.Value = value - expense
 		po.Balance.Currency = po.Close.Price.Currency
-
-		// now compare with the market ETF
-		bench := getBenchmark(pinfo.Ins.Ticker, pinfo.Ins.Type, po.Balance.Currency)
-		if bench != "" {
-			po.YieldMarket =
-				p.getYield(p.insByTicker(bench), po.Balance.Currency,
-					po.AvgDate, po.Close.Date)
-		}
 	}
 }
 

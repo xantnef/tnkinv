@@ -290,14 +290,16 @@ func (p *Portfolio) accountOperation(pinfo *schema.PositionInfo, op schema.Opera
 
 // =============================================================================
 
-func xchgrate(cc *candles.CandleCache, currency string, t time.Time) float64 {
-	if currency == "RUB" {
-		return 1
+func xchgrate(cc *candles.CandleCache, curr_from, curr_to string, t time.Time) float64 {
+	if xf, ok := map[string]func() float64{
+		"RUB" + "RUB": func() float64 { return 1 },
+		"RUB" + "USD": func() float64 { return 1 / cc.GetOnDay(schema.FigiUSD, t) },
+		"USD" + "USD": func() float64 { return 1 },
+		"USD" + "RUB": func() float64 { return cc.GetOnDay(schema.FigiUSD, t) },
+	}[curr_from+curr_to]; ok {
+		return xf()
 	}
-	if currency == "USD" {
-		return cc.GetOnDay(schema.FigiUSD, t)
-	}
-
+	log.Fatalf("unknown conversion %s->%s", curr_from, curr_to)
 	return 0
 }
 
@@ -350,7 +352,7 @@ func addOpToBalance(bal *schema.Balance, op schema.Operation, cc *candles.Candle
 		bal.Payins[op.Currency].Value += op.Payment
 
 		// add total payin
-		payin := op.Payment * xchgrate(cc, op.Currency, op.DateParsed)
+		payin := op.Payment * xchgrate(cc, op.Currency, "RUB", op.DateParsed)
 		if bal.Payins["all"].Value == 0 {
 			bal.AvgDate = op.DateParsed
 		} else {
@@ -362,7 +364,7 @@ func addOpToBalance(bal *schema.Balance, op schema.Operation, cc *candles.Candle
 
 		bal.Commissions[op.Currency].Value += op.Payment
 		// add total
-		bal.Commissions["all"].Value += op.Payment * xchgrate(cc, op.Currency, op.DateParsed)
+		bal.Commissions["all"].Value += op.Payment * xchgrate(cc, op.Currency, "RUB", op.DateParsed)
 
 		// 1.5
 		bal.Assets[op.Currency].Value -= -op.Payment

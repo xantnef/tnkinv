@@ -15,7 +15,7 @@ import (
 )
 
 type config struct {
-	token, sideOps, period, format, acc string
+	token, sideOps, fictOps, period, format, acc string
 
 	tickers []string
 
@@ -69,7 +69,7 @@ func parseCmdline() (string, config) {
 	fs := flag.NewFlagSet("", flag.ExitOnError)
 	token := fs.String("token", "", "API token")
 	sideOps := fs.String("operations", "", "json file with operations")
-	format := fs.String("format", "human", "output format")
+	fictOps := fs.String("fictives", "", "json file with fictive operations")
 	acc := fs.String("account", "broker", "account")
 	loglevel := fs.String("loglevel", "none", "log level")
 
@@ -77,12 +77,14 @@ func parseCmdline() (string, config) {
 	start := fs.String("start", "", "starting point in time (format: 1922/12/28; default: year ago)")
 	end := fs.String("end", "", "end point in time (format: 1922/12/28; default: now)")
 	atTime := fs.String("at", "", "point in time (default: now). Not supported yet")
+	format := fs.String("format", "human", "output format")
 	tickers := fs.String("tickers", "", "list of tickers")
 
 	fs.Parse(os.Args[2:])
 
 	cfg.token = *token
 	cfg.sideOps = *sideOps
+	cfg.fictOps = *fictOps
 	cfg.period = *period
 	if *tickers != "" {
 		cfg.tickers = strings.Split(*tickers, ",")
@@ -143,12 +145,13 @@ func usage() {
 		"\t   common params: \n" +
 		"\t     --account broker|iis|all \n" +
 		"\t     --operations filename \n" +
-		"\t     --format human|table \n" +
+		"\t     --fictives filename \n" +
 		"\t     --loglevel {debug|all} \n" +
 		"\t   subcmds: \n" +
 		"\t     show   [--at 1922/12/28 (default: today)] \n" +
 		"\t     story  [--start 1901/01/01 (default: year ago)] \n" +
 		"\t            [--period day|week|month (default: month)] \n" +
+		"\t            [--format human|table (default: human)] \n" +
 		"\t     deals  [--start 1901/01/01 (default: none)] \n" +
 		"\t            [--end 1902/02/02 (default: now)] \n" +
 		"\t            [--period day|week|month|all (default: month)] \n" +
@@ -193,7 +196,7 @@ func main() {
 		return
 	}
 
-	port := portfolio.NewPortfolio(c, getAccountIds(c, cfg.acc), cfg.sideOps)
+	port := portfolio.NewPortfolio(c, getAccountIds(c, cfg.acc), cfg.sideOps, cfg.fictOps)
 
 	if cmd == "show" {
 		port.Collect(cfg.at)

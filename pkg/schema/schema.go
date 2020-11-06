@@ -54,6 +54,13 @@ type PortfolioResponse struct {
 	TrackingID string `json:"trackingId"`
 }
 
+type Trade struct {
+	Date     string  `json:"date"`
+	Price    float64 `json:"price"`
+	Quantity uint    `json:"quantity"`
+	TradeID  string  `json:"tradeId"`
+}
+
 /* Payment:
  * buy: negative
  * dividends, coupons: positive
@@ -73,12 +80,7 @@ type Operation struct {
 	Price          float64 `json:"price"`
 	Quantity       uint    `json:"quantity"`
 	Status         string  `json:"status"`
-	Trades         []struct {
-		Date     string  `json:"date"`
-		Price    float64 `json:"price"`
-		Quantity uint    `json:"quantity"`
-		TradeID  string  `json:"tradeId"`
-	} `json:"trades"`
+	Trades         []Trade `json:"trades"`
 	// Added fields below
 	DateParsed time.Time `json:"-"`
 	Ticker     string    `json:"-"`

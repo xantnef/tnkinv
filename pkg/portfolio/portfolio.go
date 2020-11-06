@@ -45,10 +45,11 @@ type Portfolio struct {
 	config struct {
 		enableAccrued bool
 		opsFile       string
+		fictFile      string
 	}
 }
 
-func NewPortfolio(c *client.MyClient, accs []string, opsFile string) *Portfolio {
+func NewPortfolio(c *client.MyClient, accs []string, opsFile, fictFile string) *Portfolio {
 	p := &Portfolio{
 		client: c,
 		accs:   accs,
@@ -60,6 +61,7 @@ func NewPortfolio(c *client.MyClient, accs []string, opsFile string) *Portfolio 
 		sections: make(sectionMap),
 	}
 	p.config.opsFile = opsFile
+	p.config.fictFile = fictFile
 	return p
 }
 
@@ -120,12 +122,20 @@ func readOperations(fname string) (ops []schema.Operation) {
 func (p *Portfolio) preprocessOperations(start time.Time) {
 	var ops []schema.Operation
 
-	for _, acc := range p.accs {
-		resp := p.client.RequestOperations(start, acc)
-		ops = append(ops, resp.Payload.Operations...)
+	if p.config.fictFile == "" {
+		for _, acc := range p.accs {
+			resp := p.client.RequestOperations(start, acc)
+			ops = append(ops, resp.Payload.Operations...)
+		}
 	}
 
-	ops = append(ops, readOperations(p.config.opsFile)...)
+	if p.config.opsFile != "" {
+		ops = append(ops, readOperations(p.config.opsFile)...)
+	}
+
+	if p.config.fictFile != "" {
+		ops = append(ops, fetchFictives(p.client, p.cc, p.config.fictFile)...)
+	}
 
 	for i := range ops {
 		var err error

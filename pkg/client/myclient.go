@@ -2,6 +2,7 @@ package client
 
 import (
 	"encoding/json"
+	"errors"
 	"io/ioutil"
 	"time"
 
@@ -116,7 +117,7 @@ func (c *MyClient) RequestByFigi(figi string) schema.Instrument {
 		int(resp.Payload.FaceValue))
 }
 
-func (c *MyClient) RequestByTicker(ticker string) schema.Instrument {
+func (c *MyClient) TryRequestByTicker(ticker string) (schema.Instrument, error) {
 	mktApi := c.getAPI().MarketApi
 	resp := schema.SearchByTickerResponse{}
 
@@ -131,7 +132,7 @@ func (c *MyClient) RequestByTicker(ticker string) schema.Instrument {
 	}
 
 	if len(resp.Payload.Instruments) == 0 {
-		log.Fatalf("no ticker %s", ticker)
+		return schema.Instrument{}, errors.New("ticker not found")
 	}
 
 	log.Trace(string(body))
@@ -144,7 +145,15 @@ func (c *MyClient) RequestByTicker(ticker string) schema.Instrument {
 		i.Name,
 		i.Type,
 		i.Currency,
-		int(i.FaceValue))
+		int(i.FaceValue)), nil
+}
+
+func (c *MyClient) RequestByTicker(ticker string) schema.Instrument {
+	i, err := c.TryRequestByTicker(ticker)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return i
 }
 
 func (c *MyClient) RequestPortfolio(acc string) schema.PortfolioResponse {

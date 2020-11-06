@@ -107,13 +107,13 @@ func (c *MyClient) RequestByFigi(figi string) schema.Instrument {
 
 	log.Trace(string(body))
 
-	return schema.Instrument{
-		Figi:      resp.Payload.Figi,
-		Ticker:    resp.Payload.Ticker,
-		Name:      resp.Payload.Name,
-		Currency:  resp.Payload.Currency,
-		FaceValue: int(resp.Payload.FaceValue),
-	}
+	return schema.NewInstrument(
+		resp.Payload.Figi,
+		resp.Payload.Ticker,
+		resp.Payload.Name,
+		resp.Payload.Type,
+		resp.Payload.Currency,
+		int(resp.Payload.FaceValue))
 }
 
 func (c *MyClient) RequestByTicker(ticker string) schema.Instrument {
@@ -136,13 +136,15 @@ func (c *MyClient) RequestByTicker(ticker string) schema.Instrument {
 
 	log.Trace(string(body))
 
-	return schema.Instrument{
-		Figi:      resp.Payload.Instruments[0].Figi,
-		Ticker:    resp.Payload.Instruments[0].Ticker,
-		Name:      resp.Payload.Instruments[0].Name,
-		Currency:  resp.Payload.Instruments[0].Currency,
-		FaceValue: int(resp.Payload.Instruments[0].FaceValue),
-	}
+	i := resp.Payload.Instruments[0]
+
+	return schema.NewInstrument(
+		i.Figi,
+		i.Ticker,
+		i.Name,
+		i.Type,
+		i.Currency,
+		int(i.FaceValue))
 }
 
 func (c *MyClient) RequestPortfolio(acc string) schema.PortfolioResponse {

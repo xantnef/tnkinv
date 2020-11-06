@@ -72,6 +72,25 @@ func (cv CValue) Copy() *CValue {
 
 // =============================================================================
 
+func NewInstrument(figi, ticker, name, typ, currency string, faceValue int) Instrument {
+	if !Currencies.Has(currency) {
+		log.Fatal("unknown currency %s (%s)", currency, ticker)
+	}
+
+	ins := Instrument{
+		Figi:      figi,
+		Ticker:    ticker,
+		Name:      name,
+		Currency:  currency,
+		FaceValue: faceValue,
+	}
+	ins.Type = GetInstrumentType(typ, ticker)
+	ins.Section = GetSection(ins)
+	return ins
+}
+
+// =============================================================================
+
 func balanceMaps() []string {
 	lst := []string{"all"}
 	return append(lst, CurrenciesOrdered[:]...)

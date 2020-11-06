@@ -125,6 +125,7 @@ type SearchByFigiResponse struct {
 		Name              string  `json:"name"`
 		Ticker            string  `json:"ticker"`
 		FaceValue         float64 `json:"faceValue"`
+		Type              string  `json:"type"`
 	} `json:"payload"`
 	Status     string `json:"status"`
 	TrackingID string `json:"trackingId"`
@@ -141,6 +142,7 @@ type SearchByTickerResponse struct {
 			Name              string  `json:"name"`
 			Ticker            string  `json:"ticker"`
 			FaceValue         float64 `json:"faceValue"`
+			Type              string  `json:"type"`
 		} `json:"instruments"`
 	} `json:"payload"`
 	Status     string `json:"status"`

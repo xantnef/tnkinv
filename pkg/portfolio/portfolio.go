@@ -228,8 +228,6 @@ func (p *Portfolio) addPosition(op schema.Operation) *schema.PositionInfo {
 
 		AccumulatedIncome: schema.NewCValue(0, op.Currency),
 	}
-	pinfo.Ins.Type = getInstrumentType(op.InstrumentType, pinfo.Ins.Ticker)
-	pinfo.Ins.Section = getSection(pinfo.Ins.Ticker, pinfo.Ins.Type, op.Currency)
 
 	p.positions[op.Figi] = pinfo
 	return pinfo
@@ -529,9 +527,7 @@ func priceInCurrency(cc *candles.CandleCache, ins schema.Instrument, curr string
 }
 
 func (p *Portfolio) getMarketYield(ins schema.Instrument, po *schema.Portion, expense float64) float64 {
-	curr := po.Close.Price.Currency
-
-	bench := getBenchmark(ins.Ticker, ins.Type, curr)
+	bench := schema.GetBenchmark(ins)
 	if bench == "" {
 		return 0
 	}
@@ -540,10 +536,10 @@ func (p *Portfolio) getMarketYield(ins schema.Instrument, po *schema.Portion, ex
 	var pieces float64
 
 	for _, deal := range po.Buys {
-		pieces += deal.Value() / priceInCurrency(p.cc, bins, curr, deal.Date)
+		pieces += deal.Value() / priceInCurrency(p.cc, bins, ins.Currency, deal.Date)
 	}
 
-	value := pieces * priceInCurrency(p.cc, bins, curr, po.Close.Date)
+	value := pieces * priceInCurrency(p.cc, bins, ins.Currency, po.Close.Date)
 
 	return aux.Ratio2Perc(value / expense)
 }

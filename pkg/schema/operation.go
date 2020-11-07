@@ -2,6 +2,8 @@ package schema
 
 import (
 	"fmt"
+
+	"../aux"
 )
 
 func (op Operation) StringPretty() string {
@@ -17,16 +19,17 @@ func (op Operation) StringPretty() string {
 }
 
 func (op Operation) IsTrading() bool {
-	return op.OperationType == "Buy" || op.OperationType == "BuyCard" ||
-		op.OperationType == "Sell"
+	return aux.IsIn(op.OperationType, "Buy", "BuyCard", "Sell")
 }
 
 func (op Operation) IsPayment() bool {
 	// TODO PartRepayment doesnt really belong here.
 	// make it a pseudo-deal?
-	return op.OperationType == "Dividend" ||
-		op.OperationType == "TaxDividend" ||
-		op.OperationType == "Coupon" ||
-		op.OperationType == "TaxCoupon" ||
-		op.OperationType == "PartRepayment"
+	return aux.IsIn(op.OperationType,
+		"Dividend",
+		"TaxDividend",
+		"Coupon",
+		"TaxCoupon",
+		"PartRepayment",
+	)
 }

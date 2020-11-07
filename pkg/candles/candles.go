@@ -87,8 +87,10 @@ func (cc *CandleCache) fetchCandles(figi string, start, end time.Time, period st
 		c.price = pcandles[i-1].C
 		c.time, err = time.Parse(time.RFC3339, pcandles[i].Time)
 		if err != nil {
-			log.Fatal("failed to parse time %v", err)
+			log.Fatal("failed to parse time: %v (%s)", pcandles[i], err)
 		}
+
+		log.Debugf("new candle %s=%f ", c.time, c.price)
 
 		clist = append(clist, c)
 	}
@@ -132,23 +134,23 @@ func (cc *CandleCache) findInCache(figi string, t time.Time, exact bool) (float6
 		return 0, errors.New("no cache")
 	}
 
+	// idx = first element after date X
 	idx := sort.Search(len(pcandles), func(i int) bool {
-		return pcandles[i].time.Year() == t.Year() &&
-			pcandles[i].time.YearDay() == t.YearDay()
+		el := pcandles[i].time
+		return el.Year() > t.Year() ||
+			el.Year() == t.Year() && el.YearDay() >= t.YearDay()
 	})
 
 	if idx < len(pcandles) {
-		return logAndRet(pcandles[idx])
+		el := pcandles[idx].time
+		if el.Year() == t.Year() && el.YearDay() == t.YearDay() {
+			return logAndRet(pcandles[idx])
+		}
 	}
 
 	if exact {
 		return 0, errors.New("exact date not found")
 	}
-
-	// idx = first element after date X
-	idx = sort.Search(len(pcandles), func(i int) bool {
-		return pcandles[i].time.After(t)
-	})
 
 	if idx == 0 {
 		// all candles are after

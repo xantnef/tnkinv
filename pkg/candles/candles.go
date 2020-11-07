@@ -26,17 +26,17 @@ type CandleCache struct {
 	cache         map[string][]candle // key=figi
 }
 
-func NewCandleCache(c *client.MyClient, start time.Time) *CandleCache {
+func NewCandleCache(c *client.MyClient) *CandleCache {
 	return &CandleCache{
 		client: c,
-		start:  start,
 
 		periodFetched: aux.NewList(),
 		cache:         make(map[string][]candle),
 	}
 }
 
-func (cc *CandleCache) WithPeriod(period string) *CandleCache {
+func (cc *CandleCache) WithPeriod(start time.Time, period string) *CandleCache {
+	cc.start = start
 	cc.period = period
 	return cc
 }

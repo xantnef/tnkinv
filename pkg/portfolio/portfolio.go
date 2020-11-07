@@ -7,7 +7,6 @@ import (
 	"math"
 	"os"
 	"sort"
-	"sync"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -678,16 +677,13 @@ func (p *Portfolio) openDealsBalance(time time.Time) *schema.Balance {
 }
 
 func (p *Portfolio) Collect(at time.Time) {
-	var once sync.Once
-
 	p.config.enableAccrued = true
+
+	p.cc = candles.NewCandleCache(p.client)
 
 	p.processPortfolio()
 
 	cash := p.processOperations(func(bal *schema.Balance, opTime time.Time) bool {
-		once.Do(func() {
-			p.cc = candles.NewCandleCache(p.client, opTime)
-		})
 		return opTime.Before(at)
 	})
 
@@ -781,7 +777,7 @@ func (p *Portfolio) summarize( /* const */ bal schema.Balance, t time.Time, form
 func (p *Portfolio) ListBalances(start time.Time, period, format string) {
 	p.processPortfolio()
 
-	p.cc = candles.NewCandleCache(p.client, start).WithPeriod(period)
+	p.cc = candles.NewCandleCache(p.client).WithPeriod(start, period)
 
 	candleTimes := p.cc.ListTimes()
 

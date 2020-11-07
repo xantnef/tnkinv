@@ -11,7 +11,7 @@ import (
 )
 
 func GetPrices(c *client.MyClient, tickers []string, start, end time.Time) {
-	cc := candles.NewCandleCache(c, start)
+	cc := candles.NewCandleCache(c)
 
 	for _, ticker := range tickers {
 		ins := c.RequestByTicker(ticker)

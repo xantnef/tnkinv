@@ -4,37 +4,6 @@ import (
 	"time"
 )
 
-type InsType string
-
-const (
-	InsTypeEtf      InsType = "Etf"
-	InsTypeBond             = "Bond"
-	InsTypeStock            = "Stock"
-	InsTypeCurrency         = "Currency"
-)
-
-type Section string
-
-const (
-	BondRub  Section = "Bond.RUB"
-	BondUsd          = "Bond.USD"
-	StockRub         = "Stock.RUB"
-	StockUsd         = "Stock.USD"
-	CashRub          = "Cash.RUB"
-	CashUsd          = "Cash.USD"
-)
-
-type Instrument struct {
-	Figi      string `json:"figi"`
-	Ticker    string `json:"ticker"`
-	Name      string `json:"name"`
-	Currency  string `json:"currency"`
-	FaceValue int    `json:"faceValue"`
-
-	Type    InsType
-	Section Section
-}
-
 type PortfolioResponse struct {
 	Payload struct {
 		Positions []struct {

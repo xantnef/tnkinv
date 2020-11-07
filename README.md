@@ -6,7 +6,24 @@ Currently safe and readonly; and only prints some portfolio information.
 
 ## Running
 ```
-tnkinv --token {file_with_token} [--sandtoken {file_with_sandbox_token}]
+ tnkinv {subcmd} [params] --token file_with_token
+   common params:
+     --account broker|iis|all
+     --operations filename
+     --fictives filename
+     --loglevel {debug|all}
+   subcmds:
+     show   [--at 1922/12/28 (default: today)]
+     story  [--start 1901/01/01 (default: year ago)]
+            [--period day|week|month (default: month)]
+            [--format human|table (default: human)]
+     deals  [--start 1901/01/01 (default: none)]
+            [--end 1902/02/02 (default: now)]
+            [--period day|week|month|all (default: month)]
+     price  --tickers ticker1,ticker2,..
+            [--start 1901/01/01 (default: year ago)]
+            [--end 1902/02/02 (default: now)]
+     sandbox
 ```
 
 ## Info

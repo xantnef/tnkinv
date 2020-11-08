@@ -227,3 +227,22 @@ func (cc *CandleCache) Pricef1(t time.Time) schema.Pricef1 {
 		return cc.Get(figi, t)
 	}
 }
+
+func (cc *CandleCache) Xchgrate(curr_from, curr_to string, t time.Time) float64 {
+	if xf, ok := map[string]func() float64{
+		"RUB" + "RUB": func() float64 { return 1 },
+		"RUB" + "USD": func() float64 { return 1 / cc.GetOnDay(schema.FigiUSD, t) },
+		"USD" + "USD": func() float64 { return 1 },
+		"USD" + "RUB": func() float64 { return cc.GetOnDay(schema.FigiUSD, t) },
+	}[curr_from+curr_to]; ok {
+		return xf()
+	}
+	log.Fatalf("unknown conversion %s->%s", curr_from, curr_to)
+	return 0
+}
+
+func (cc *CandleCache) GetInCurrency(ins schema.Instrument, curr string, t time.Time) float64 {
+	price := cc.Get(ins.Figi, t) * cc.Xchgrate(ins.Currency, curr, t)
+	log.Debugf("%s at %s costs %f", ins.Ticker, t, price)
+	return price
+}

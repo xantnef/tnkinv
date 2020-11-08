@@ -297,109 +297,6 @@ func (p *Portfolio) accountOperation(pinfo *schema.PositionInfo, op schema.Opera
 
 // =============================================================================
 
-func xchgrate(cc *candles.CandleCache, curr_from, curr_to string, t time.Time) float64 {
-	if xf, ok := map[string]func() float64{
-		"RUB" + "RUB": func() float64 { return 1 },
-		"RUB" + "USD": func() float64 { return 1 / cc.GetOnDay(schema.FigiUSD, t) },
-		"USD" + "USD": func() float64 { return 1 },
-		"USD" + "RUB": func() float64 { return cc.GetOnDay(schema.FigiUSD, t) },
-	}[curr_from+curr_to]; ok {
-		return xf()
-	}
-	log.Fatalf("unknown conversion %s->%s", curr_from, curr_to)
-	return 0
-}
-
-/*
-
- Balance consists of:
-
- USD
- + Assets:
-    1. Cash balance
-        1.1 Direct payins
-        1.2 Exchanges
-        1.3 Sold stocks
-        1.4 - Bought stocks
-        1.5 - Service commissions
-        1.6 - Tax
-        1.7 Dividends, coupons & repayments
-    2. Open USD positions
- - Payins
-    3. Directs payins
-    4. Exchanges
-
-RUB
- + Assets:
-    1. Cash balance
-        1.1 Direct payins
-        1.3 Sold stocks & dollars
-        1.4 - Bought stocks & dollars
-        1.5 - Service commissions
-        1.6 - Tax
-        1.7 Dividends, coupons & repayments
-    2. Open RUB positions
- - Payins:
-    3. Direct payins
-    5. - Exchanged money
-
-*/
-
-func addOpToBalance(bal *schema.Balance, op schema.Operation, cc *candles.CandleCache) {
-	if op.IsTrading() || op.OperationType == "BrokerCommission" {
-		// not accounted here
-
-	} else if op.IsPayment() {
-		// 1.7
-		bal.Assets[op.Currency].Value += op.Payment
-	} else if op.OperationType == "PayIn" {
-		// 1.1
-		bal.Assets[op.Currency].Value += op.Payment
-		// 3
-		bal.Payins[op.Currency].Value += op.Payment
-
-		// add total payin
-		payin := op.Payment * xchgrate(cc, op.Currency, "RUB", op.DateParsed)
-		if bal.Payins["all"].Value == 0 {
-			bal.AvgDate = op.DateParsed
-		} else {
-			bal.AvgDate = adjustDate(bal.AvgDate, op.DateParsed, bal.Payins["all"].Value, payin)
-		}
-		bal.Payins["all"].Value += payin
-
-	} else if op.OperationType == "ServiceCommission" {
-
-		bal.Commissions[op.Currency].Value += op.Payment
-		// add total
-		bal.Commissions["all"].Value += op.Payment * xchgrate(cc, op.Currency, "RUB", op.DateParsed)
-
-		// 1.5
-		bal.Assets[op.Currency].Value -= -op.Payment
-
-	} else if op.OperationType == "Tax" {
-		// 1.6
-		bal.Assets[op.Currency].Value -= -op.Payment
-	} else {
-		log.Warnf("Unprocessed transaction 2 %v", op)
-	}
-}
-
-func addDealToBalance(bal *schema.Balance, figi string, deal *schema.Deal) {
-	if figi == schema.FigiUSD {
-		// Exchanges
-		// 1.2
-		bal.Assets["USD"].Value += float64(deal.Quantity)
-		// 4
-		bal.Payins["USD"].Value += float64(deal.Quantity)
-		// 5
-		bal.Payins["RUB"].Value -= deal.Value()
-	}
-	// 1.3, 1.4, 2
-	bal.Assets[deal.Price.Currency].Value -= deal.Value() - deal.Commission
-}
-
-// =============================================================================
-
 func (p *Portfolio) getOpenPortion(pinfo *schema.PositionInfo) *schema.Portion {
 	if len(pinfo.Portions) == 0 {
 		return nil
@@ -411,13 +308,6 @@ func (p *Portfolio) getOpenPortion(pinfo *schema.PositionInfo) *schema.Portion {
 	}
 
 	return po
-}
-
-func adjustDate(avgT, newT time.Time, total, value float64) time.Time {
-	// TODO think again is this correct?
-	mult := value / total
-	biasDays := int(math.Round(newT.Sub(avgT).Hours() * mult / 24))
-	return avgT.AddDate(0, 0, biasDays)
 }
 
 func (p *Portfolio) addToPortions(pinfo *schema.PositionInfo, deal *schema.Deal) {
@@ -436,7 +326,7 @@ func (p *Portfolio) addToPortions(pinfo *schema.PositionInfo, deal *schema.Deal)
 	if deal.Quantity > 0 { // buy
 		po.CheckNoSplitSells(pinfo.Ins.Ticker)
 
-		po.AvgDate = adjustDate(po.AvgDate, deal.Date, pinfo.OpenSpent, deal.Value())
+		po.AvgDate = aux.AdjustDate(po.AvgDate, deal.Date, pinfo.OpenSpent, deal.Value())
 
 		//po.AvgPrice.Value = deal.Price.Value*mult + po.AvgPrice.Value*(1-mult)
 		po.Buys = append(po.Buys, deal)
@@ -529,12 +419,6 @@ func (p *Portfolio) makeOpenDeal(pinfo *schema.PositionInfo, date time.Time, set
 	return deal
 }
 
-func priceInCurrency(cc *candles.CandleCache, ins schema.Instrument, curr string, t time.Time) float64 {
-	price := cc.Get(ins.Figi, t) * xchgrate(cc, ins.Currency, curr, t)
-	log.Debugf("%s at %s costs %f", ins.Ticker, t, price)
-	return price
-}
-
 func (p *Portfolio) getMarketYield(ins schema.Instrument, po *schema.Portion, expense float64) float64 {
 	bench := schema.GetBenchmark(ins)
 	if bench == "" {
@@ -545,10 +429,10 @@ func (p *Portfolio) getMarketYield(ins schema.Instrument, po *schema.Portion, ex
 	var pieces float64
 
 	for _, deal := range po.Buys {
-		pieces += deal.Value() / priceInCurrency(p.cc, bins, ins.Currency, deal.Date)
+		pieces += deal.Value() / p.cc.GetInCurrency(bins, ins.Currency, deal.Date)
 	}
 
-	value := pieces * priceInCurrency(p.cc, bins, ins.Currency, po.Close.Date)
+	value := pieces * p.cc.GetInCurrency(bins, ins.Currency, po.Close.Date)
 
 	return aux.Ratio2Perc(value / expense)
 }
@@ -627,11 +511,11 @@ func (p *Portfolio) processOperations(cb func(*schema.Balance, time.Time) bool) 
 			if deal != nil {
 				pinfo.Deals = append(pinfo.Deals, deal)
 				p.addToPortions(pinfo, deal)
-				addDealToBalance(bal, pinfo.Ins.Figi, deal)
+				bal.AddDeal(deal, pinfo.Ins.Figi)
 			}
 		}
 
-		addOpToBalance(bal, op, p.cc)
+		bal.AddOperation(op, p.cc.Xchgrate)
 
 		log.Debugf(" [%s] %s at %s (%f) new balance: %f",
 			op.OperationType, p.tryGetTicker(op.Figi),
@@ -673,8 +557,8 @@ func (p *Portfolio) openDealsBalancePerSection(time time.Time) (sectionMap, *sch
 			m[pinfo.Ins.Section] = bal
 		}
 
-		addDealToBalance(bal, pinfo.Ins.Figi, od)
-		addDealToBalance(total, pinfo.Ins.Figi, od)
+		bal.AddDeal(od, pinfo.Ins.Figi)
+		total.AddDeal(od, pinfo.Ins.Figi)
 	}
 
 	return m, total
@@ -781,7 +665,7 @@ func (p *Portfolio) summarize( /* const */ bal schema.Balance, t time.Time, form
 	obal.Add(bal)
 	p.calcAllAssets(t, sections, obal)
 
-	printBalance(sections, obal, t.Format("2006/01/02"), format)
+	obal.Print(sections, t.Format("2006/01/02"), format)
 }
 
 func (p *Portfolio) ListBalances(start time.Time, period, format string) {
@@ -799,7 +683,7 @@ func (p *Portfolio) ListBalances(start time.Time, period, format string) {
 		return
 	}
 
-	printBalanceHead(format)
+	schema.PrintBalanceHead(format)
 
 	bal := p.processOperations(func(bal *schema.Balance, opTime time.Time) bool {
 

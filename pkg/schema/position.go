@@ -30,11 +30,11 @@ type PositionInfo struct {
 	AccumulatedIncome CValue // TODO
 }
 
-func (pinfo *PositionInfo) IsClosed() bool {
+func (pinfo PositionInfo) IsClosed() bool {
 	return pinfo.OpenDeal == nil
 }
 
-func (pinfo *PositionInfo) StringPretty() string {
+func (pinfo PositionInfo) StringPretty() string {
 	s := fmt.Sprintf("%s:", pinfo.Ins.Name)
 
 	od := pinfo.OpenDeal

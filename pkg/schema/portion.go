@@ -8,13 +8,12 @@ import (
 )
 
 type Portion struct {
-	Buys  []*Deal
-	Close *Deal
+	Buys  []Deal
+	Close Deal
 
 	IsClosed bool
 
-	AvgDate  time.Time
-	AvgPrice CValue // TODO unused
+	AvgDate time.Time
 
 	Balance     CValue
 	Yield       float64
@@ -22,7 +21,7 @@ type Portion struct {
 	YieldMarket float64
 
 	// aux and temporary
-	SplitSells []*Deal
+	SplitSells []Deal
 }
 
 func (po *Portion) CheckNoSplitSells(ticker string) {
@@ -30,7 +29,7 @@ func (po *Portion) CheckNoSplitSells(ticker string) {
 		// those split sells were indeed partial
 		log.Errorf("%s: partial sells are not handled nicely yet %s",
 			ticker, po.SplitSells)
-		po.SplitSells = []*Deal{}
+		po.SplitSells = []Deal{}
 	}
 }
 

@@ -47,7 +47,7 @@ type Operation struct {
 	OperationType  string  `json:"operationType"`
 	Payment        float64 `json:"payment"`
 	Price          float64 `json:"price"`
-	Quantity       uint    `json:"quantity"`
+	Quantity_      uint    `json:"quantity"`
 	Status         string  `json:"status"`
 	Trades         []Trade `json:"trades"`
 	// Added fields below

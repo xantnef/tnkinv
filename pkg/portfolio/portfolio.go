@@ -1,17 +1,12 @@
 package portfolio
 
 import (
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"math"
-	"os"
-	"sort"
 	"time"
 
 	log "github.com/sirupsen/logrus"
 
-	"../aux"
 	"../candles"
 	"../client"
 	"../schema"
@@ -67,169 +62,9 @@ func NewPortfolio(c *client.MyClient, accs []string, opsFile, fictFile string) *
 
 // =============================================================================
 
-func (p *Portfolio) insByFigi(figi string) schema.Instrument {
-	ins, ok := p.instruments[figi]
-	if !ok {
-		ins = p.client.RequestByFigi(figi)
-		p.instruments[figi] = ins
-	}
-	log.Debug(ins)
-	return ins
-}
-
-func (p *Portfolio) insByTicker(ticker string) schema.Instrument {
-	for _, ins := range p.instruments {
-		if ins.Ticker == ticker {
-			return ins
-		}
-	}
-
-	ins := p.client.RequestByTicker(ticker)
-	p.instruments[ins.Figi] = ins
-	return ins
-}
-
-// =============================================================================
-
-func (p *Portfolio) processPortfolio() {
-	for _, acc := range p.accs {
-		pfResp := p.client.RequestPortfolio(acc)
-		for _, pos := range pfResp.Payload.Positions {
-			p.accrued[pos.Figi] = pos.AveragePositionPrice.Value - pos.AveragePositionPriceNoNkd.Value
-		}
-	}
-}
-
-// =============================================================================
-
-func readOperations(fname string) (ops []schema.Operation) {
-	data, err := ioutil.ReadFile(fname)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return
-		}
-		log.Fatal(err)
-	}
-
-	err = json.Unmarshal(data, &ops)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	return ops
-}
-
-func (p *Portfolio) preprocessOperations(start time.Time) {
-	var ops []schema.Operation
-
-	if p.config.fictFile == "" {
-		for _, acc := range p.accs {
-			resp := p.client.RequestOperations(start, acc)
-			ops = append(ops, resp.Payload.Operations...)
-		}
-	}
-
-	if p.config.opsFile != "" {
-		ops = append(ops, readOperations(p.config.opsFile)...)
-	}
-
-	if p.config.fictFile != "" {
-		ops = append(ops, fetchFictives(p.client, p.cc, p.config.fictFile)...)
-	}
-
-	for i := range ops {
-		var err error
-		ops[i].DateParsed, err = time.Parse(time.RFC3339, ops[i].Date)
-		if err != nil {
-			log.Fatal("Failed to parse time: %v", err)
-		}
-	}
-
-	sort.Slice(ops, func(i, j int) bool {
-		return ops[i].DateParsed.Before(ops[j].DateParsed)
-	})
-
-	p.data.ops = ops
-}
-
-// =============================================================================
-
-func repaymentMultiplier(pinfo *schema.PositionInfo, t time.Time) float64 {
-	idx := sort.Search(len(pinfo.Repayments), func(i int) bool {
-		return pinfo.Repayments[i].Time.After(t)
-	})
-
-	if idx < len(pinfo.Repayments) {
-		return pinfo.Repayments[idx].Mult
-	}
-
-	return 1
-}
-
-func (p *Portfolio) addRepayment(figi string, t time.Time, value float64) {
-	pinfo := p.positions[figi]
-	pinfo.Repayments = append(pinfo.Repayments,
-		&schema.RepaymentPoint{
-			Time: t,
-		})
-
-	for _, rep := range pinfo.Repayments {
-		rep.Mult += value
-	}
-}
-
-func (p *Portfolio) addStaticRepayments() {
-	if p.positions["BBG00GW0RM55"] != nil {
-		p.addRepayment("BBG00GW0RM55",
-			time.Date(2019, 12, 10, 7, 0, 0, 0, time.UTC),
-			83)
-		p.addRepayment("BBG00GW0RM55",
-			time.Date(2020, 3, 10, 7, 0, 0, 0, time.UTC),
-			83)
-	}
-}
-
-func (p *Portfolio) calculateRepayments() {
-	amounts := make(map[string]int)
-
-	for _, op := range p.data.ops {
-		if op.Status != "Done" {
-			continue
-		}
-
-		if op.IsTrading() {
-			amounts[op.Figi] += operationQuantity(op)
-			continue
-		}
-
-		if op.OperationType == "PartRepayment" {
-			p.addRepayment(op.Figi, op.DateParsed, op.Payment/float64(amounts[op.Figi]))
-			continue
-		}
-	}
-
-	// Temporary fixup:
-	// The problem is that the solution doesn't work for
-	//  - amortized bonds
-	//  - that were open at some t1 (point we want to know balance at)
-	//  - but were all sold at some point t2
-	//  - and there were more repayments from t2 till now
-	// ..because there seems to be no way to get their partrepayment stats after the selling point
-	// Maybe extrapolate the previous repayments?
-	p.addStaticRepayments()
-
-	// Now normalize the multipliers
-	for _, pinfo := range p.positions {
-		for _, rep := range pinfo.Repayments {
-			log.Debugf("repayment %s at %s: %f/%d", pinfo.Ins.Name, rep.Time, rep.Mult, pinfo.Ins.FaceValue)
-			rep.Mult = (rep.Mult + float64(pinfo.Ins.FaceValue)) / float64(pinfo.Ins.FaceValue)
-		}
-	}
-}
-
-func (p *Portfolio) addPosition(op schema.Operation) *schema.PositionInfo {
-	if pinfo, exists := p.positions[op.Figi]; exists {
-		return pinfo
+func (p *Portfolio) addPosition(op schema.Operation) {
+	if _, exists := p.positions[op.Figi]; exists {
+		return
 	}
 
 	pinfo := &schema.PositionInfo{
@@ -239,246 +74,12 @@ func (p *Portfolio) addPosition(op schema.Operation) *schema.PositionInfo {
 	}
 
 	p.positions[op.Figi] = pinfo
-	return pinfo
-}
-
-func operationQuantity(op schema.Operation) int {
-	quantity := 0
-	// bug or feature?
-	// op.Quantity reflects the whole order size;
-	// if the order is only partially completed, sum(op.Trades.Quantity) < op.Quantity
-	for _, trade := range op.Trades {
-		quantity += int(trade.Quantity)
-	}
-	if op.OperationType == "Sell" {
-		quantity = -quantity
-	}
-	return quantity
-}
-
-func (p *Portfolio) accountOperation(pinfo *schema.PositionInfo, op schema.Operation) (deal *schema.Deal) {
-	log.Debugf("%s", op)
-
-	if op.IsTrading() {
-		deal = &schema.Deal{
-			Date:       op.DateParsed,
-			Price:      schema.NewCValue(op.Price, op.Currency),
-			Quantity:   operationQuantity(op),
-			Commission: op.Commission.Value,
-		}
-
-		// op.Payment is negative for Buy
-		// deal.Quantity is positive for Buy
-		// deal.Price is always positive
-		// Commission is not included in Payment
-		deal.Accrued = -op.Payment - deal.Price.Value*float64(deal.Quantity)
-
-	} else if op.OperationType == "BrokerCommission" {
-		// negative
-		pinfo.AccumulatedIncome.Value += op.Payment
-
-	} else if op.IsPayment() {
-		// income - positive, taxes - negative
-		pinfo.AccumulatedIncome.Value += op.Payment
-		pinfo.Dividends = append(pinfo.Dividends,
-			&schema.Dividend{
-				Date:  op.DateParsed,
-				Value: op.Payment,
-			})
-	} else if op.OperationType == "Tax" {
-		// negative
-		pinfo.AccumulatedIncome.Value += op.Payment
-	} else {
-		log.Warnf("Unprocessed transaction %v", op)
-	}
-
-	return
-}
-
-// =============================================================================
-
-func (p *Portfolio) getOpenPortion(pinfo *schema.PositionInfo) *schema.Portion {
-	if len(pinfo.Portions) == 0 {
-		return nil
-	}
-
-	po := pinfo.Portions[len(pinfo.Portions)-1]
-	if po.IsClosed {
-		return nil
-	}
-
-	return po
-}
-
-func (p *Portfolio) addToPortions(pinfo *schema.PositionInfo, deal *schema.Deal) {
-	po := p.getOpenPortion(pinfo)
-	if po == nil {
-		po = &schema.Portion{
-			Balance: schema.NewCValue(0, deal.Price.Currency),
-			AvgDate: deal.Date,
-		}
-		pinfo.Portions = append(pinfo.Portions, po)
-	}
-
-	pinfo.OpenQuantity += deal.Quantity
-	pinfo.OpenSpent += deal.Value()
-
-	if deal.Quantity > 0 { // buy
-		po.CheckNoSplitSells(pinfo.Ins.Ticker)
-
-		po.AvgDate = aux.AdjustDate(po.AvgDate, deal.Date, pinfo.OpenSpent, deal.Value())
-
-		//po.AvgPrice.Value = deal.Price.Value*mult + po.AvgPrice.Value*(1-mult)
-		po.Buys = append(po.Buys, deal)
-
-	} else { // sell
-
-		if pinfo.OpenQuantity < 0 {
-			log.Fatalf("negative balance? %v", pinfo)
-		}
-
-		if pinfo.OpenQuantity > 0 {
-			// How to better handle it?
-			// 1. split sells. try and merge. those wont split between days,
-			//    so wont cross portion period boundaries
-			//
-			// 2. true partial sells. options?
-			//    2.1 sell all, buy some back
-			//    2.2 ?
-			//
-			po.SplitSells = append(po.SplitSells, deal)
-
-		} else {
-			if len(po.SplitSells) > 0 {
-				// new "superdeal"
-				sdeal := *deal
-				sval := sdeal.Value()
-
-				for _, psell := range po.SplitSells {
-					sdeal.Quantity += psell.Quantity
-					sdeal.Accrued += psell.Accrued
-					sdeal.Commission += psell.Commission
-					sval += psell.Value()
-				}
-
-				sdeal.Price.Value = (sval - sdeal.Accrued) / float64(sdeal.Quantity)
-				deal = &sdeal
-			}
-
-			pinfo.OpenSpent = 0
-
-			// complete sell
-			po.Close = deal
-			po.IsClosed = true
-		}
-	}
-}
-
-func (p *Portfolio) getAccrued(pinfo *schema.PositionInfo, date time.Time) float64 {
-	// Accrued value cannot be fetched for date != Now
-	if pinfo.Ins.Type != schema.InsTypeBond {
-		return 0
-	}
-	if !p.config.enableAccrued {
-		return 0
-	}
-	if time.Now().Sub(date).Hours() > 24 {
-		return 0
-	}
-
-	accrued, ok := p.accrued[pinfo.Ins.Figi]
-	if !ok {
-		log.Warnf("missing accrued value for %s, balance is inaccurate", pinfo.Ins.Figi)
-	}
-	return accrued
-}
-
-func (p *Portfolio) getPrice(pinfo *schema.PositionInfo, t time.Time) float64 {
-	return p.cc.Get(pinfo.Ins.Figi, t)*repaymentMultiplier(pinfo, t) + p.getAccrued(pinfo, t)
-}
-
-func (p *Portfolio) makeOpenDeal(pinfo *schema.PositionInfo, date time.Time, setClose bool) *schema.Deal {
-	po := p.getOpenPortion(pinfo)
-	if po == nil {
-		return nil
-	}
-
-	po.CheckNoSplitSells(pinfo.Ins.Ticker)
-
-	deal := &schema.Deal{
-		Date:     date,
-		Price:    schema.NewCValue(p.getPrice(pinfo, date), po.Balance.Currency),
-		Quantity: -pinfo.OpenQuantity,
-	}
-
-	if setClose {
-		po.Close = deal
-		pinfo.OpenDeal = deal
-	}
-
-	return deal
-}
-
-func (p *Portfolio) getMarketYield(ins schema.Instrument, po *schema.Portion, expense float64) float64 {
-	bench := schema.GetBenchmark(ins)
-	if bench == "" {
-		return 0
-	}
-
-	bins := p.insByTicker(bench)
-	var pieces float64
-
-	for _, deal := range po.Buys {
-		pieces += deal.Value() / p.cc.GetInCurrency(bins, ins.Currency, deal.Date)
-	}
-
-	value := pieces * p.cc.GetInCurrency(bins, ins.Currency, po.Close.Date)
-
-	return aux.Ratio2Perc(value / expense)
-}
-
-func calcYield(asset, expense float64, delta time.Duration) (yield, annual float64) {
-	yield = aux.Ratio2Perc(asset / expense)
-	annual = aux.Ratio2Perc(aux.RatioAnnual(asset/expense, delta))
-	return
-}
-
-func (p *Portfolio) makePortionYields(pinfo *schema.PositionInfo) {
-	for _, po := range pinfo.Portions {
-		var expense float64
-
-		value := -po.Close.Value()
-
-		for _, div := range pinfo.Dividends {
-			if div.Date.Before(po.Buys[0].Date) {
-				continue
-			}
-			if div.Date.After(po.Close.Date) {
-				// TODO not quite right. Dividends come with delay
-				continue
-			}
-			value += div.Value
-		}
-
-		for _, deal := range po.Buys {
-			expense += deal.Value()
-			expense += -deal.Commission
-		}
-		expense += -po.Close.Commission
-
-		po.Yield, po.YieldAnnual = calcYield(value, expense, po.Close.Date.Sub(po.AvgDate))
-		// compare with the market ETF
-		po.YieldMarket = p.getMarketYield(pinfo.Ins, po, expense)
-
-		po.Balance.Value = value - expense
-		po.Balance.Currency = po.Close.Price.Currency
-	}
 }
 
 // =============================================================================
 
 func (p *Portfolio) processOperations(cb func(*schema.Balance, time.Time) bool) *schema.Balance {
-	p.preprocessOperations(beginning)
+	p.data.ops = p.getOperations(beginning)
 
 	for _, op := range p.data.ops {
 		if op.Status == "Done" && op.Figi != "" {
@@ -507,10 +108,8 @@ func (p *Portfolio) processOperations(cb func(*schema.Balance, time.Time) bool) 
 
 		if op.Figi != "" {
 			pinfo := p.positions[op.Figi]
-			deal := p.accountOperation(pinfo, op)
-			if deal != nil {
-				pinfo.Deals = append(pinfo.Deals, deal)
-				p.addToPortions(pinfo, deal)
+			deal, isDeal := pinfo.AddOperation(op)
+			if isDeal {
 				bal.AddDeal(deal, pinfo.Ins.Figi)
 			}
 		}
@@ -531,11 +130,10 @@ func (p *Portfolio) processOperations(cb func(*schema.Balance, time.Time) bool) 
 	return bal
 }
 
-func (p *Portfolio) tryGetTicker(figi string) string {
-	if figi == "" {
-		return ""
-	}
-	return p.insByFigi(figi).Ticker
+// =============================================================================
+
+func (p *Portfolio) getFullPrice(pinfo *schema.PositionInfo, t time.Time) float64 {
+	return p.cc.Get(pinfo.Ins.Figi, t)*pinfo.RepaymentMultiplier(t) + p.getAccrued(pinfo, t)
 }
 
 func (p *Portfolio) openDealsBalancePerSection(time time.Time) (sectionMap, *schema.Balance) {
@@ -543,13 +141,16 @@ func (p *Portfolio) openDealsBalancePerSection(time time.Time) (sectionMap, *sch
 	total := schema.NewBalance()
 
 	for _, pinfo := range p.positions {
-		od := p.makeOpenDeal(pinfo, time, true)
+		od, hasOd := pinfo.MakeOpenDeal(time,
+			func() float64 {
+				return p.getFullPrice(pinfo, time)
+			})
 
-		log.Debugf("open deal %s %s %s", pinfo.Ins.Figi, pinfo.Ins.Ticker, od)
-
-		if od == nil || pinfo.Ins.Figi == schema.FigiUSD {
+		if !hasOd || pinfo.Ins.Figi == schema.FigiUSD {
 			continue
 		}
+
+		log.Debugf("open deal %s %s %s", pinfo.Ins.Figi, pinfo.Ins.Ticker, od)
 
 		bal := m[pinfo.Ins.Section]
 		if bal == nil {
@@ -571,11 +172,9 @@ func (p *Portfolio) openDealsBalance(time time.Time) *schema.Balance {
 }
 
 func (p *Portfolio) Collect(at time.Time) {
-	p.config.enableAccrued = true
+	p.collectAccrued()
 
 	p.cc = candles.NewCandleCache(p.client)
-
-	p.processPortfolio()
 
 	cash := p.processOperations(func(bal *schema.Balance, opTime time.Time) bool {
 		return opTime.Before(at)
@@ -596,9 +195,7 @@ func (p *Portfolio) Collect(at time.Time) {
 func (p *Portfolio) ListDeals(start, end time.Time) {
 	empty := true
 
-	p.processPortfolio()
-
-	p.preprocessOperations(start)
+	p.data.ops = p.getOperations(start)
 
 	deals := schema.NewBalance()
 	comms := schema.NewBalance()
@@ -669,8 +266,6 @@ func (p *Portfolio) summarize( /* const */ bal schema.Balance, t time.Time, form
 }
 
 func (p *Portfolio) ListBalances(start time.Time, period, format string) {
-	p.processPortfolio()
-
 	p.cc = candles.NewCandleCache(p.client).WithPeriod(start, period)
 
 	candleTimes := p.cc.ListTimes()

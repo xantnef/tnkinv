@@ -225,7 +225,7 @@ func (bal *Balance) AddOperation(op Operation, xchgrate func(curr_from, curr_to 
 	}
 }
 
-func (bal *Balance) AddDeal(deal *Deal, figi string) {
+func (bal *Balance) AddDeal(deal Deal, figi string) {
 	if figi == FigiUSD {
 		// Exchanges
 		// 1.2

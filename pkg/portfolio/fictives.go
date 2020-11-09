@@ -62,10 +62,10 @@ func fetchFictives(c *client.MyClient, cc *candles.CandleCache, fname string) (o
 				Figi:           ins.Figi,
 				InstrumentType: string(ins.Type),
 
-				Price:    price,
-				Currency: op.Currency,
-				Quantity: n,
-				Payment:  -price * float64(n),
+				Price:     price,
+				Currency:  op.Currency,
+				Quantity_: n,
+				Payment:   -price * float64(n),
 
 				OperationType: "Buy",
 				Status:        "Done",

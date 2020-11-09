@@ -33,3 +33,17 @@ func (op Operation) IsPayment() bool {
 		"PartRepayment",
 	)
 }
+
+func (op Operation) Quantity() int {
+	quantity := 0
+	// bug or feature?
+	// op.Quantity reflects the whole order size;
+	// if the order is only partially completed, sum(op.Trades.Quantity) < op.Quantity
+	for _, trade := range op.Trades {
+		quantity += int(trade.Quantity)
+	}
+	if op.OperationType == "Sell" {
+		quantity = -quantity
+	}
+	return quantity
+}

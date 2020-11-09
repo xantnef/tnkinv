@@ -68,7 +68,7 @@ func GetInstrumentType(typ string, ticker string) InsType {
 	return InsType(typ)
 }
 
-func GetBenchmark(ins Instrument) string {
+func (ins Instrument) Benchmark() string {
 	if bench, ok := map[string]string{
 		InsTypeBond + "RUB":  "VTBB",
 		InsTypeBond + "USD":  "FXRU",

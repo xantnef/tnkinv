@@ -12,6 +12,8 @@ func (p *Portfolio) Print() {
 
 	p.totals.Print(p.sections, "", "")
 
+	fmt.Printf(" alpha: %s\n", p.alphas)
+
 	fmt.Println("== Current positions ==")
 	p.forSortedPositions(func(pinfo *schema.PositionInfo) {
 		if pinfo.IsClosed() {

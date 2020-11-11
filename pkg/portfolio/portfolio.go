@@ -36,6 +36,7 @@ type Portfolio struct {
 
 	sections sectionMap
 	totals   *schema.Balance
+	alphas   schema.CurMap
 
 	config struct {
 		enableAccrued bool
@@ -53,7 +54,7 @@ func NewPortfolio(c *client.MyClient, accs []string, opsFile, fictFile string) *
 		positions:   make(map[string]*schema.PositionInfo),
 		accrued:     make(map[string]float64),
 
-		sections: make(sectionMap),
+		alphas: schema.NewCurMap(),
 	}
 	p.config.opsFile = opsFile
 	p.config.fictFile = fictFile
@@ -183,11 +184,12 @@ func (p *Portfolio) Collect(at time.Time) {
 	p.sections, p.totals = p.openDealsBalancePerSection(at)
 	p.totals.Add(*cash)
 
-	p.calcAllAssets(at, p.sections, p.totals)
-
 	for _, pinfo := range p.positions {
-		p.makePortionYields(pinfo)
+		alpha := p.makePortionYields(pinfo)
+		p.alphas.Add(alpha)
 	}
+
+	p.calcAllAssets(at, p.sections, p.totals, p.alphas)
 }
 
 // =============================================================================
@@ -248,19 +250,23 @@ func (p *Portfolio) ListDeals(start, end time.Time) {
 
 // =============================================================================
 
-func (p *Portfolio) calcAllAssets(t time.Time, sections sectionMap, totals *schema.Balance) {
+func (p *Portfolio) calcAllAssets(t time.Time, sections sectionMap, totals *schema.Balance, alphas schema.CurMap) {
 	usd, eur := p.cc.Get(schema.FigiUSD, t), 0.0
 
 	totals.CalcAllAssets(usd, eur)
 	for _, section := range sections {
 		section.CalcAllAssets(usd, eur)
 	}
+
+	if alphas != nil {
+		alphas.CalcAll(usd, eur)
+	}
 }
 
 func (p *Portfolio) summarize( /* const */ bal schema.Balance, t time.Time, format string) {
 	sections, obal := p.openDealsBalancePerSection(t)
 	obal.Add(bal)
-	p.calcAllAssets(t, sections, obal)
+	p.calcAllAssets(t, sections, obal, nil)
 
 	obal.Print(sections, t.Format("2006/01/02"), format)
 }

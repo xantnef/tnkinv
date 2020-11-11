@@ -17,31 +17,64 @@ func balanceMaps() []string {
 
 type CurMap map[string]*CValue
 
+func NewCurMap() CurMap {
+	m := make(CurMap)
+	for cur := range Currencies {
+		cv := NewCValue(0, cur)
+		m[cur] = &cv
+	}
+	cv := NewCValue(0, "RUB")
+	m["all"] = &cv
+	return m
+}
+
+func (m CurMap) CalcAll(usd, eur float64) float64 {
+	xchgrate := map[string]float64{
+		"RUB": 1,
+		"USD": usd,
+		"EUR": eur,
+	}
+
+	m["all"].Value = 0
+	for cur := range Currencies {
+		m["all"].Value += m[cur].Value * xchgrate[cur]
+	}
+	return m["all"].Value
+}
+
+func (m CurMap) Add(cv CValue) {
+	m[cv.Currency].Value += cv.Value
+}
+
+func (m CurMap) String() string {
+	s := ""
+	for _, cur := range balanceMaps() {
+		if m[cur].Value != 0 {
+			if s != "" {
+				s += ", "
+			}
+			s += fmt.Sprintf("{%s: %.2f}", cur, m[cur].Value)
+		}
+	}
+	return s
+}
+
+// =============================================================================
+
 type Balance struct {
 	Commissions, Payins, Assets CurMap
 	AvgDate                     time.Time
 }
 
 func NewBalance() *Balance {
-	b := &Balance{
-		Commissions: make(CurMap),
-		Payins:      make(CurMap),
-		Assets:      make(CurMap),
+	return &Balance{
+		Commissions: NewCurMap(),
+		Payins:      NewCurMap(),
+		Assets:      NewCurMap(),
 	}
-
-	b.Foreach(func(nm string, m CurMap) {
-		for cur := range Currencies {
-			cv := NewCValue(0, cur)
-			m[cur] = &cv
-		}
-		cv := NewCValue(0, "RUB")
-		m["all"] = &cv
-	})
-
-	return b
 }
 
-func (b Balance) Get(currency string) CValue {
+func (b Balance) Get_(currency string) CValue { // TODO unused
 	return NewCValue(
 		b.Assets[currency].Value-b.Payins[currency].Value,
 		b.Assets[currency].Currency)
@@ -91,19 +124,20 @@ func (b *Balance) Add(b2 Balance) {
 	}
 }
 
-func (b *Balance) CalcAllAssets(usd, eur float64) float64 {
-	xchgrate := map[string]float64{
-		"RUB": 1,
-		"USD": usd,
-		"EUR": eur,
-	}
-
-	b.Assets["all"].Value = 0
-	for cur := range Currencies {
-		b.Assets["all"].Value += b.Assets[cur].Value * xchgrate[cur]
-	}
+/*
+func (b *Balance) CalcAll(usd, eur float64) float64 {
+	b.Foreach(func(s string, m CurMap) {
+		m.CalcAll(usd, eur)
+	})
 	return b.Assets["all"].Value
 }
+*/
+
+func (b *Balance) CalcAllAssets(usd, eur float64) float64 {
+	return b.Assets.CalcAll(usd, eur)
+}
+
+// =============================================================================
 
 const (
 	TableStyle = "table"
@@ -150,6 +184,8 @@ func (b Balance) Print(sections map[Section]*Balance, prefix, style string) {
 	}
 	fmt.Println(s)
 }
+
+// =============================================================================
 
 /*
 

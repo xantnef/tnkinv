@@ -23,7 +23,9 @@ func (p *Portfolio) getMarketYield(ins schema.Instrument, po *schema.Portion, ex
 	return aux.Ratio2Perc(value / expense)
 }
 
-func (p *Portfolio) makePortionYields(pinfo *schema.PositionInfo) {
+func (p *Portfolio) makePortionYields(pinfo *schema.PositionInfo) schema.CValue {
+	alpha := schema.NewCValue(0, pinfo.Ins.Currency)
+
 	for _, po := range pinfo.Portions {
 		var expense float64
 
@@ -53,5 +55,9 @@ func (p *Portfolio) makePortionYields(pinfo *schema.PositionInfo) {
 
 		po.Balance.Value = value - expense
 		po.Balance.Currency = po.Close.Price.Currency
+
+		alpha.Value += po.Alpha().Value
 	}
+
+	return alpha
 }

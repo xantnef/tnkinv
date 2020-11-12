@@ -14,8 +14,6 @@ import (
 
 var beginning = time.Date(2016, 1, 1, 0, 0, 0, 0, time.UTC)
 
-type sectionMap map[schema.Section]*schema.Balance
-
 type Portfolio struct {
 	client *client.MyClient
 
@@ -34,9 +32,8 @@ type Portfolio struct {
 
 	figisSorted []string
 
-	sections sectionMap
-	totals   *schema.Balance
-	alphas   schema.CurMap
+	balance schema.SectionedBalance
+	alphas  schema.CurMap
 
 	config struct {
 		enableAccrued bool
@@ -137,9 +134,8 @@ func (p *Portfolio) getFullPrice(pinfo *schema.PositionInfo, t time.Time) float6
 	return p.cc.Get(pinfo.Ins.Figi, t)*pinfo.RepaymentMultiplier(t) + p.getAccrued(pinfo, t)
 }
 
-func (p *Portfolio) openDealsBalancePerSection(time time.Time) (sectionMap, *schema.Balance) {
-	m := make(sectionMap)
-	total := schema.NewBalance()
+func (p *Portfolio) openDealsSectionedBalance(time time.Time) schema.SectionedBalance {
+	sb := schema.NewSectionedBalance()
 
 	for _, pinfo := range p.positions {
 		od, hasOd := pinfo.MakeOpenDeal(time,
@@ -153,23 +149,16 @@ func (p *Portfolio) openDealsBalancePerSection(time time.Time) (sectionMap, *sch
 
 		log.Debugf("open deal %s %s %s", pinfo.Ins.Figi, pinfo.Ins.Ticker, od)
 
-		bal := m[pinfo.Ins.Section]
-		if bal == nil {
-			bal = schema.NewBalance()
-			m[pinfo.Ins.Section] = bal
-		}
-
-		bal.AddDeal(od, pinfo.Ins.Figi)
-		total.AddDeal(od, pinfo.Ins.Figi)
+		sb.AddDeal(od, pinfo.Ins.Figi, pinfo.Ins.Section)
 	}
 
-	return m, total
+	return sb
 }
 
 func (p *Portfolio) openDealsBalance(time time.Time) *schema.Balance {
-	_, b := p.openDealsBalancePerSection(time)
-	log.Debugf("current asset balance: %s", b)
-	return b
+	sb := p.openDealsSectionedBalance(time)
+	log.Debugf("current asset balance: %s", sb.Total)
+	return sb.Total
 }
 
 func (p *Portfolio) Collect(at time.Time) {
@@ -181,15 +170,15 @@ func (p *Portfolio) Collect(at time.Time) {
 		return opTime.Before(at)
 	})
 
-	p.sections, p.totals = p.openDealsBalancePerSection(at)
-	p.totals.Add(*cash)
+	p.balance = p.openDealsSectionedBalance(at)
+	p.balance.Total.Add(*cash)
 
 	for _, pinfo := range p.positions {
 		alpha := p.makePortionYields(pinfo)
 		p.alphas.Add(alpha)
 	}
 
-	p.calcAllAssets(at, p.sections, p.totals, p.alphas)
+	p.calcAllAssets(p.balance, p.alphas, at)
 }
 
 // =============================================================================
@@ -250,13 +239,10 @@ func (p *Portfolio) ListDeals(start, end time.Time) {
 
 // =============================================================================
 
-func (p *Portfolio) calcAllAssets(t time.Time, sections sectionMap, totals *schema.Balance, alphas schema.CurMap) {
+func (p *Portfolio) calcAllAssets(sb schema.SectionedBalance, alphas schema.CurMap, t time.Time) {
 	usd, eur := p.cc.Get(schema.FigiUSD, t), 0.0
 
-	totals.CalcAllAssets(usd, eur)
-	for _, section := range sections {
-		section.CalcAllAssets(usd, eur)
-	}
+	sb.CalcAllAssets(usd, eur)
 
 	if alphas != nil {
 		alphas.CalcAll(usd, eur)
@@ -264,11 +250,12 @@ func (p *Portfolio) calcAllAssets(t time.Time, sections sectionMap, totals *sche
 }
 
 func (p *Portfolio) summarize( /* const */ bal schema.Balance, t time.Time, format string) {
-	sections, obal := p.openDealsBalancePerSection(t)
-	obal.Add(bal)
-	p.calcAllAssets(t, sections, obal, nil)
+	obal := p.openDealsSectionedBalance(t)
+	obal.Total.Add(bal)
 
-	obal.Print(sections, t.Format("2006/01/02"), format)
+	p.calcAllAssets(obal, nil, t)
+
+	obal.Print(t.Format("2006/01/02"), format)
 }
 
 func (p *Portfolio) ListBalances(start time.Time, period, format string) {

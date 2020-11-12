@@ -11,8 +11,7 @@ import (
 )
 
 func balanceMaps() []string {
-	lst := []string{"all"}
-	return append(lst, CurrenciesOrdered[:]...)
+	return append(CurrenciesOrdered[:], "all")
 }
 
 type CurMap map[string]*CValue
@@ -124,65 +123,8 @@ func (b *Balance) Add(b2 Balance) {
 	}
 }
 
-/*
-func (b *Balance) CalcAll(usd, eur float64) float64 {
-	b.Foreach(func(s string, m CurMap) {
-		m.CalcAll(usd, eur)
-	})
-	return b.Assets["all"].Value
-}
-*/
-
 func (b *Balance) CalcAllAssets(usd, eur float64) float64 {
 	return b.Assets.CalcAll(usd, eur)
-}
-
-// =============================================================================
-
-const (
-	TableStyle = "table"
-)
-
-func PrintBalanceHead(style string) {
-	if style == TableStyle {
-		fmt.Println("payins, assets, delta, bonds.rub, bonds.usd, stocks.rub, stocks.usd, pivotdate")
-	}
-}
-
-func (b Balance) Print(sections map[Section]*Balance, prefix, style string) {
-	p, a := b.Payins["all"].Value, b.Assets["all"].Value
-	d := a - p
-
-	sectionShare := func(section Section) float64 {
-		if sections != nil {
-			if bal := sections[section]; bal != nil {
-				return 100 * bal.Assets["all"].Value / a
-			}
-		}
-		return 0
-	}
-
-	bru, bus, sru, sus := math.Round(sectionShare(BondRub)*10)/10,
-		math.Round(sectionShare(BondUsd)*10)/10,
-		math.Round(sectionShare(StockRub)*10)/10,
-		math.Round(sectionShare(StockUsd)*10)/10
-
-	s := ""
-	if style == TableStyle {
-		if prefix != "" {
-			s = prefix + ", "
-		}
-		s += fmt.Sprintf("%.0f, %.0f, %.0f, %.1f, %.1f, %.1f, %.1f, %s",
-			p, a, d, bru, bus, sru, sus, b.AvgDate.Format("2006/01/02"))
-
-	} else {
-		if prefix != "" {
-			s = prefix + ": "
-		}
-		s += fmt.Sprintf("%7.0f -> %7.0f : %6.0f : bonds(R+U) %2.1f+%2.1f%% stocks %2.1f+%2.1f%% : pd %s",
-			p, a, d, bru, bus, sru, sus, b.AvgDate.Format("2006/01/02"))
-	}
-	fmt.Println(s)
 }
 
 // =============================================================================
@@ -273,4 +215,85 @@ func (bal *Balance) AddDeal(deal Deal, figi string) {
 	}
 	// 1.3, 1.4, 2
 	bal.Assets[deal.Price.Currency].Value -= deal.Value() - deal.Commission
+}
+
+// =============================================================================
+
+type SectionedBalance struct {
+	Sections map[Section]*Balance
+	Total    *Balance
+}
+
+func NewSectionedBalance() SectionedBalance {
+	return SectionedBalance{
+		Sections: make(map[Section]*Balance),
+		Total:    NewBalance(),
+	}
+}
+
+func (sb SectionedBalance) SectionBalance(section Section) *Balance {
+	b := sb.Sections[section]
+	if b == nil {
+		b = NewBalance()
+		sb.Sections[section] = b
+	}
+	return b
+}
+
+func (sb SectionedBalance) AddDeal(deal Deal, figi string, section Section) {
+	sb.SectionBalance(section).AddDeal(deal, figi)
+	sb.Total.AddDeal(deal, figi)
+}
+
+func (sb SectionedBalance) CalcAllAssets(usd, eur float64) {
+	sb.Total.CalcAllAssets(usd, eur)
+	for _, b := range sb.Sections {
+		b.CalcAllAssets(usd, eur)
+	}
+}
+
+const (
+	TableStyle = "table"
+)
+
+func PrintBalanceHead(style string) {
+	if style == TableStyle {
+		fmt.Println("payins, assets, delta, bonds.rub, bonds.usd, stocks.rub, stocks.usd, pivotdate")
+	}
+}
+
+func (b SectionedBalance) Print(prefix, style string) {
+	p, a := b.Total.Payins["all"].Value, b.Total.Assets["all"].Value
+	d := a - p
+
+	sectionShare := func(section Section) float64 {
+		if b.Sections != nil {
+			if bal := b.Sections[section]; bal != nil {
+				return 100 * bal.Assets["all"].Value / a
+			}
+		}
+		return 0
+	}
+
+	bru, bus, sru, sus := math.Round(sectionShare(BondRub)*10)/10,
+		math.Round(sectionShare(BondUsd)*10)/10,
+		math.Round(sectionShare(StockRub)*10)/10,
+		math.Round(sectionShare(StockUsd)*10)/10
+
+	s := ""
+	if style == TableStyle {
+		if prefix != "" {
+			s = prefix + ", "
+		}
+		s += fmt.Sprintf("%.0f, %.0f, %.0f, %.1f, %.1f, %.1f, %.1f, %s",
+			p, a, d, bru, bus, sru, sus, b.Total.AvgDate.Format("2006/01/02"))
+
+	} else {
+		if prefix != "" {
+			s = prefix + ": "
+		}
+		s += fmt.Sprintf("%7.0f -> %7.0f : %6.0f : bonds(R+U) %2.1f+%2.1f%% stocks %2.1f+%2.1f%% : pd %s",
+			p, a, d, bru, bus, sru, sus, b.Total.AvgDate.Format("2006/01/02"))
+	}
+	fmt.Println(s)
 }

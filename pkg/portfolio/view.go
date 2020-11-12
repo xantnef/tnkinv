@@ -10,7 +10,7 @@ import (
 func (p *Portfolio) Print() {
 	fmt.Println("== Totals ==")
 
-	p.totals.Print(p.sections, "", "")
+	p.balance.Print("", "")
 
 	fmt.Printf(" alpha: %s\n", p.alphas)
 

@@ -2,7 +2,6 @@ package schema
 
 import (
 	"fmt"
-	"math"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -252,6 +251,16 @@ func (sb SectionedBalance) CalcAllAssets(usd, eur float64) {
 	}
 }
 
+func (sb SectionedBalance) sectionShare(section Section) float64 {
+	if sb.Sections != nil && sb.Total != nil {
+		if bal := sb.Sections[section]; bal != nil {
+			a := sb.Total.Assets["all"].Value
+			return 100 * bal.Assets["all"].Value / a
+		}
+	}
+	return 0
+}
+
 const (
 	TableStyle = "table"
 )
@@ -262,23 +271,9 @@ func PrintBalanceHead(style string) {
 	}
 }
 
-func (b SectionedBalance) Print(prefix, style string) {
+func (b SectionedBalance) Print(t time.Time, prefix, style string) {
 	p, a := b.Total.Payins["all"].Value, b.Total.Assets["all"].Value
 	d := a - p
-
-	sectionShare := func(section Section) float64 {
-		if b.Sections != nil {
-			if bal := b.Sections[section]; bal != nil {
-				return 100 * bal.Assets["all"].Value / a
-			}
-		}
-		return 0
-	}
-
-	bru, bus, sru, sus := math.Round(sectionShare(BondRub)*10)/10,
-		math.Round(sectionShare(BondUsd)*10)/10,
-		math.Round(sectionShare(StockRub)*10)/10,
-		math.Round(sectionShare(StockUsd)*10)/10
 
 	s := ""
 	if style == TableStyle {
@@ -286,14 +281,25 @@ func (b SectionedBalance) Print(prefix, style string) {
 			s = prefix + ", "
 		}
 		s += fmt.Sprintf("%.0f, %.0f, %.0f, %.1f, %.1f, %.1f, %.1f, %s",
-			p, a, d, bru, bus, sru, sus, b.Total.AvgDate.Format("2006/01/02"))
-
+			p, a, d,
+			b.sectionShare(BondRub),
+			b.sectionShare(BondUsd),
+			b.sectionShare(StockRub),
+			b.sectionShare(StockUsd),
+			b.Total.AvgDate.Format("2006/01/02"))
 	} else {
 		if prefix != "" {
 			s = prefix + ": "
 		}
-		s += fmt.Sprintf("%7.0f -> %7.0f : %6.0f : bonds(R+U) %2.1f+%2.1f%% stocks %2.1f+%2.1f%% : pd %s",
-			p, a, d, bru, bus, sru, sus, b.Total.AvgDate.Format("2006/01/02"))
+		s += fmt.Sprintf("%7.0f -> %7.0f : %6.0f (%.1f%%, annual %.1f%%, pd %s) "+
+			"bonds(R+U) %.1f+%.1f%% stocks %.1f+%.1f%%",
+			p, a, d,
+			aux.Ratio2Perc(a/p), aux.Ratio2Perc(aux.RatioAnnual(a/p, t.Sub(b.Total.AvgDate))),
+			b.Total.AvgDate.Format("2006/01/02"),
+			b.sectionShare(BondRub),
+			b.sectionShare(BondUsd),
+			b.sectionShare(StockRub),
+			b.sectionShare(StockUsd))
 	}
 	fmt.Println(s)
 }

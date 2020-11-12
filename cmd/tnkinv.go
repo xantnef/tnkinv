@@ -200,7 +200,7 @@ func main() {
 
 	if cmd == "show" {
 		port.Collect(cfg.at)
-		port.Print()
+		port.Print(cfg.at)
 		return
 	}
 

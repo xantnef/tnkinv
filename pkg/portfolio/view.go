@@ -3,16 +3,19 @@ package portfolio
 import (
 	"fmt"
 	"sort"
+	"time"
 
+	"../aux"
 	"../schema"
 )
 
-func (p *Portfolio) Print() {
+func (p *Portfolio) Print(at time.Time) {
 	fmt.Println("== Totals ==")
 
-	p.balance.Print("", "")
+	p.balance.Print(at, "", "")
 
-	fmt.Printf(" alpha: %s\n", p.alphas)
+	fmt.Printf(" alpha: %s (%.1f%%)\n",
+		p.alphas, aux.Ratio2Perc(p.alphaCorrectedAssets()/p.payins()))
 
 	fmt.Println("== Current positions ==")
 	p.forSortedPositions(func(pinfo *schema.PositionInfo) {

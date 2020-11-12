@@ -60,6 +60,28 @@ func NewPortfolio(c *client.MyClient, accs []string, opsFile, fictFile string) *
 
 // =============================================================================
 
+func (p *Portfolio) payins() float64 {
+	total := p.balance.Total
+	if total == nil {
+		return 0
+	}
+	return total.Payins["all"].Value
+}
+
+func (p *Portfolio) assets() float64 {
+	total := p.balance.Total
+	if total == nil {
+		return 0
+	}
+	return total.Assets["all"].Value
+}
+
+func (p *Portfolio) alphaCorrectedAssets() float64 {
+	return p.assets() - p.alphas["all"].Value
+}
+
+// =============================================================================
+
 func (p *Portfolio) addPosition(op schema.Operation) {
 	if _, exists := p.positions[op.Figi]; exists {
 		return
@@ -255,7 +277,7 @@ func (p *Portfolio) summarize( /* const */ bal schema.Balance, t time.Time, form
 
 	p.calcAllAssets(obal, nil, t)
 
-	obal.Print(t.Format("2006/01/02"), format)
+	obal.Print(t, t.Format("2006/01/02"), format)
 }
 
 func (p *Portfolio) ListBalances(start time.Time, period, format string) {

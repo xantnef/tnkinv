@@ -148,6 +148,10 @@ func (pinfo *PositionInfo) addDeal(deal Deal) {
 func (pinfo *PositionInfo) AddOperation(op Operation) (Deal, bool) {
 	log.Debugf("%s", op)
 
+	if op.Status != "Done" {
+		return Deal{}, false
+	}
+
 	if op.IsTrading() {
 		deal := Deal{
 			Date:       op.DateParsed,
@@ -216,17 +220,11 @@ func (pinfo *PositionInfo) AddRepayment(t time.Time, value float64) {
 	pinfo.Repayments = append(pinfo.Repayments,
 		&RepaymentPoint{
 			Time: t,
+			Mult: 1,
 		})
 
 	for _, rep := range pinfo.Repayments {
-		rep.Mult += value
-	}
-}
-
-func (pinfo *PositionInfo) RepaymentsNormalize() {
-	for _, rep := range pinfo.Repayments {
-		log.Debugf("repayment %s at %s: %f/%d", pinfo.Ins.Name, rep.Time, rep.Mult, pinfo.Ins.FaceValue)
-		rep.Mult = (rep.Mult + float64(pinfo.Ins.FaceValue)) / float64(pinfo.Ins.FaceValue)
+		rep.Mult += value / float64(pinfo.Ins.FaceValue)
 	}
 }
 

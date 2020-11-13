@@ -82,9 +82,9 @@ func (p *Portfolio) alphaCorrectedAssets() float64 {
 
 // =============================================================================
 
-func (p *Portfolio) addPosition(op schema.Operation) {
-	if _, exists := p.positions[op.Figi]; exists {
-		return
+func (p *Portfolio) addPosition(op schema.Operation) *schema.PositionInfo {
+	if pinfo := p.positions[op.Figi]; pinfo != nil {
+		return pinfo
 	}
 
 	pinfo := &schema.PositionInfo{
@@ -94,6 +94,7 @@ func (p *Portfolio) addPosition(op schema.Operation) {
 	}
 
 	p.positions[op.Figi] = pinfo
+	return pinfo
 }
 
 // =============================================================================
@@ -101,15 +102,7 @@ func (p *Portfolio) addPosition(op schema.Operation) {
 func (p *Portfolio) processOperations(cb func(*schema.Balance, time.Time) bool) *schema.Balance {
 	p.data.ops = p.getOperations(beginning)
 
-	for _, op := range p.data.ops {
-		if op.Status == "Done" && op.Figi != "" {
-			p.addPosition(op)
-		}
-	}
-
-	// gotta calc them repayments first, to be able to get correct prices
-	// when calculating balances on the next iteration
-	p.calculateRepayments()
+	p.preprocessOperations()
 
 	bal := schema.NewBalance()
 
@@ -127,7 +120,7 @@ func (p *Portfolio) processOperations(cb func(*schema.Balance, time.Time) bool) 
 		log.Debugf("operation: %s", op)
 
 		if op.Figi != "" {
-			pinfo := p.positions[op.Figi]
+			pinfo := p.addPosition(op)
 			deal, isDeal := pinfo.AddOperation(op)
 			if isDeal {
 				bal.AddDeal(deal, pinfo.Ins.Figi)
@@ -139,12 +132,6 @@ func (p *Portfolio) processOperations(cb func(*schema.Balance, time.Time) bool) 
 		log.Debugf(" [%s] %s at %s (%f) new balance: %f",
 			op.OperationType, p.tryGetTicker(op.Figi),
 			op.DateParsed.Format("2006/01/02"), op.Payment, bal.Assets["RUB"].Value)
-	}
-
-	for _, pinfo := range p.positions {
-		if len(pinfo.Deals) == 0 {
-			delete(p.positions, pinfo.Ins.Figi)
-		}
 	}
 
 	return bal

@@ -49,7 +49,7 @@ func (p *Portfolio) getOperations(start time.Time) (ops []schema.Operation) {
 		var err error
 		ops[i].DateParsed, err = time.Parse(time.RFC3339, ops[i].Date)
 		if err != nil {
-			log.Fatal("Failed to parse time: %v", err)
+			log.Fatalf("Failed to parse time: %v", err)
 		}
 	}
 

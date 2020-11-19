@@ -117,7 +117,7 @@ func (p *Portfolio) processOperations(cb func(*schema.Balance, time.Time) bool) 
 			break
 		}
 
-		log.Debugf("operation: %s", op)
+		log.Debugf("operation: %v", op)
 
 		if op.Figi != "" {
 			pinfo := p.addPosition(op)

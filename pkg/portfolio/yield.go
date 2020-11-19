@@ -48,10 +48,13 @@ func (p *Portfolio) makePortionYields(pinfo *schema.PositionInfo) schema.CValue 
 		}
 		expense += -po.Close.Commission
 
-		po.Yield = aux.Ratio2Perc(value / expense)
-		po.YieldAnnual = aux.Ratio2Perc(aux.RatioAnnual(value/expense, po.Close.Date.Sub(po.AvgDate)))
-		// compare with the market ETF
-		po.YieldMarket = p.getMarketYield(pinfo.Ins, po, expense)
+		// there are fictive deals with 0 quantity
+		if expense != 0 {
+			po.Yield = aux.Ratio2Perc(value / expense)
+			po.YieldAnnual = aux.Ratio2Perc(aux.RatioAnnual(value/expense, po.Close.Date.Sub(po.AvgDate)))
+			// compare with the market ETF
+			po.YieldMarket = p.getMarketYield(pinfo.Ins, po, expense)
+		}
 
 		po.Balance.Value = value - expense
 		po.Balance.Currency = po.Close.Price.Currency

@@ -60,8 +60,24 @@ func (p *Portfolio) forSortedPositions(cb func(pinfo *schema.PositionInfo)) {
 				return true
 			}
 
-			t1 := p1.Portions[len(p1.Portions)-1].Buys[0].Date
-			t2 := p2.Portions[len(p2.Portions)-1].Buys[0].Date
+			if len(p1.Portions) == 0 {
+				return false
+			}
+			if len(p2.Portions) == 0 {
+				return true
+			}
+
+			po1 := p1.Portions[len(p1.Portions)-1]
+			if len(po1.Buys) == 0 {
+				return false
+			}
+			t1 := po1.Buys[0].Date
+
+			po2 := p2.Portions[len(p2.Portions)-1]
+			if len(po2.Buys) == 0 {
+				return true
+			}
+			t2 := po2.Buys[0].Date
 
 			return t1.Before(t2)
 		})

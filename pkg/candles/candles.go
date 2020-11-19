@@ -7,10 +7,20 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"../aux"
 	"../client"
 	"../schema"
 )
+
+// TODO
+// Candles for amortized bonds are quire fucked up.
+// They show the old values as if it was now.
+// e.g.
+//   1. price = 1000
+//   2. grew to 1100
+//   3. amortized to 880
+// candle for the time point (1) is going to show 800.
+
+type candleMap map[string][]candle // key=figi
 
 type candle struct {
 	price float64
@@ -19,88 +29,100 @@ type candle struct {
 
 type CandleCache struct {
 	client *client.MyClient
+	cache  candleMap
+
 	start  time.Time
 	period string
-
-	periodFetched aux.List            // key=figi
-	cache         map[string][]candle // key=figi
+	pcache candleMap
 }
 
 func NewCandleCache(c *client.MyClient) *CandleCache {
 	return &CandleCache{
 		client: c,
-
-		periodFetched: aux.NewList(),
-		cache:         make(map[string][]candle),
+		cache:  make(candleMap),
 	}
 }
 
-func (cc *CandleCache) WithPeriod(start time.Time, period string) *CandleCache {
-	cc.start = start
-	cc.period = period
-	return cc
-}
+func normalize(t time.Time) time.Time {
+	// normalize the time a bit
+	t = time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location())
 
-func strToDuration(s string) time.Duration {
-	switch s {
-	case "day":
-		return 24 * time.Hour
-	case "week":
-		return 7 * 24 * time.Hour
-	case "month":
-		return 365 * 24 * time.Hour / 12
-	case "year":
-		return 365 * 24 * time.Hour
-	default:
-		log.Fatalf("Unknown period %s", s)
-		return 0
+	// we wont catch all the holidays here, but it covers 95%
+	wday := t.Weekday()
+	if wday == time.Saturday {
+		t = t.Add(-1 * 24 * time.Hour)
+	} else if wday == time.Sunday {
+		t = t.Add(-2 * 24 * time.Hour)
 	}
+
+	return t
 }
 
-func (cc *CandleCache) fetchCandles(figi string, start, end time.Time, period string) (clist []candle) {
-	adjustment := 2 * strToDuration(period)
-	resp := cc.client.RequestCandles(figi, start.Add(-adjustment), end, period)
-	pcandles := resp.Payload.Candles
+func (cc *CandleCache) fetchDay(figi string, t time.Time) (clist []candle) {
+	defer print(figi, clist)
 
-	// TODO
-	// Candles for amortized bonds are quire fucked up.
-	// They show the old values as if it was now.
-	// e.g.
-	//   1. price = 1000
-	//   2. grew to 1100
-	//   3. amortized to 880
-	// candle for the time point (1) is going to show 800.
+	clist = cc.fetchDaily(figi, t, t.Add(24*time.Hour))
 
-	if len(pcandles) < 2 {
-		log.Debugf("No candles for period %s - %s", start, end)
-		return cc.fetchCandles(figi, start.Add(-24*time.Hour), end, period)
+	// idx = first element after or equal to day @t
+	idx := sort.Search(len(clist), func(i int) bool {
+		el := clist[i].time
+		return el.Year() > t.Year() ||
+			el.Year() == t.Year() && el.YearDay() >= t.YearDay()
+	})
+
+	if idx < len(clist) {
+		el := clist[idx].time
+		if el.Year() == t.Year() && el.YearDay() == t.YearDay() {
+			return clist
+		}
+	}
+
+	if idx == 0 {
+		// all candles are after
+		log.Fatalf("unexpected candle list: %s %v %s", figi, clist, t)
+	}
+
+	clist = append(clist, candle{
+		time:  t,
+		price: clist[idx-1].price,
+	})
+
+	return clist
+}
+
+func (cc *CandleCache) fetchDaily(figi string, t1, t2 time.Time) (clist []candle) {
+	t1 = normalize(t1)
+
+	pcandles := cc.client.RequestCandles(figi, t1, t2, "day").Payload.Candles
+
+	if len(pcandles) < 1 {
+		log.Debugf("No candles for period %s- %s", t1, t2)
+		return cc.fetchDaily(figi, t1.Add(-24*time.Hour), t2)
 	}
 
 	for _, p := range pcandles {
 		log.Debugf("<c> %s %s %.2f %.2f", figi, p.Time, p.O, p.C)
 	}
 
-	for i := 1; i < len(pcandles); i++ {
-		var err error
-		var c candle
-
-		c.price = pcandles[i-1].C
-		c.time, err = time.Parse(time.RFC3339, pcandles[i].Time)
+	for _, p := range pcandles {
+		date, err := time.Parse(time.RFC3339, p.Time)
 		if err != nil {
-			log.Fatal("failed to parse time: %v (%s)", pcandles[i], err)
+			log.Fatalf("failed to parse time: %v (%s)", p, err)
 		}
 
-		log.Debugf("new candle %s=%f ", c.time, c.price)
-
-		clist = append(clist, c)
+		clist = append(clist, candle{
+			time:  date,
+			price: p.C,
+		})
 	}
 
-	clist = append(clist, candle{
-		time:  end,
-		price: pcandles[len(pcandles)-1].C,
-	})
-
 	return clist
+}
+
+func print(figi string, clist []candle) {
+	for _, p := range clist {
+		log.Debugf("price %s(%s) = %.2f", figi, p.time, p.price)
+	}
 }
 
 func sortCandles(pcandles []candle) []candle {
@@ -110,26 +132,14 @@ func sortCandles(pcandles []candle) []candle {
 	return pcandles
 }
 
-func (cc *CandleCache) fetchPeriod(figi string) {
-	if cc.periodFetched.Has(figi) {
-		return
-	}
-	cc.periodFetched.Add(figi)
-
-	now := time.Now()
-
-	pcandles := cc.fetchCandles(figi, cc.start, now, cc.period)
-	cc.cache[figi] = sortCandles(append(cc.cache[figi], pcandles...))
-}
-
-func (cc *CandleCache) findInCache(figi string, t time.Time, exact bool) (float64, error) {
+func (cm candleMap) tryFind(figi string, t time.Time) (float64, error) {
 	logAndRet := func(c candle) (float64, error) {
 		log.Debugf("price(%s on %s) = %s : %f",
 			figi, t, c.time, c.price)
 		return c.price, nil
 	}
 
-	pcandles, exist := cc.cache[figi]
+	pcandles, exist := cm[figi]
 	if !exist {
 		return 0, errors.New("no cache")
 	}
@@ -141,85 +151,43 @@ func (cc *CandleCache) findInCache(figi string, t time.Time, exact bool) (float6
 			el.Year() == t.Year() && el.YearDay() >= t.YearDay()
 	})
 
-	if idx < len(pcandles) {
-		el := pcandles[idx].time
-		if el.Year() == t.Year() && el.YearDay() == t.YearDay() {
-			return logAndRet(pcandles[idx])
-		}
-	}
-
-	if exact {
-		return 0, errors.New("exact date not found")
-	}
-
-	if idx == 0 {
-		// all candles are after
-		return 0, errors.New("date is too early")
-	}
-
 	if idx == len(pcandles) {
 		// all candles are before
 		return 0, errors.New("date is too late")
 	}
 
-	if t.Sub(pcandles[idx-1].time) < pcandles[idx].time.Sub(t) {
-		return logAndRet(pcandles[idx-1])
-	} else {
+	el := pcandles[idx].time
+	if el.Year() == t.Year() && el.YearDay() == t.YearDay() {
 		return logAndRet(pcandles[idx])
 	}
+
+	return 0, errors.New("exact date not found")
 }
 
-func (cc *CandleCache) find(figi string, t time.Time) float64 {
-	price, err := cc.findInCache(figi, t, false)
+func (cm candleMap) find(figi string, t time.Time) float64 {
+	price, err := cm.tryFind(figi, t)
 	if err != nil {
-		log.Fatalf("Couldnt get candles? %s %s: %s", figi, t, err)
+		log.Fatalf("No candle %s %s: %s", figi, t, err)
 	}
 	return price
 }
 
-func (cc *CandleCache) findExactDate(figi string, t time.Time) (float64, error) {
-	return cc.findInCache(figi, t, true)
-}
-
 func (cc *CandleCache) Get(figi string, t time.Time) float64 {
-	if cc.period != "" {
-		cc.fetchPeriod(figi)
-		return cc.find(figi, t)
+	p, err := cc.getPeriodic(figi, t)
+	if err == nil {
+		return p
 	}
-	return cc.GetOnDay(figi, t)
-}
 
-func (cc *CandleCache) GetOnDay(figi string, t time.Time) float64 {
-	price, err := cc.findExactDate(figi, t)
+	price, err := cc.cache.tryFind(figi, t)
 	if err == nil {
 		return price
 	}
 
-	// normalize the time a bit
-	start := time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location())
+	pcandles := cc.fetchDay(figi, t)
 
-	// we wont catch all the holidays here, but it covers 95%
-	wday := start.Weekday()
-	if wday == time.Saturday {
-		start = start.Add(-1 * 24 * time.Hour)
-	} else if wday == time.Sunday {
-		start = start.Add(-2 * 24 * time.Hour)
-	}
-
-	pcandles := cc.fetchCandles(figi, start, start.Add(24*time.Hour), "day")
-
-	// might be a duplicate. Nothing critical
 	cc.cache[figi] = sortCandles(append(cc.cache[figi], pcandles...))
 
-	return cc.find(figi, t)
-}
-
-func (cc *CandleCache) ListTimes() (times []time.Time) {
-	cc.fetchPeriod(schema.FigiUSD)
-	for _, c := range cc.cache[schema.FigiUSD] {
-		times = append(times, c.time)
-	}
-	return
+	return cc.cache.find(figi, t)
 }
 
 func (cc *CandleCache) Pricef1(t time.Time) schema.Pricef1 {
@@ -231,9 +199,9 @@ func (cc *CandleCache) Pricef1(t time.Time) schema.Pricef1 {
 func (cc *CandleCache) Xchgrate(curr_from, curr_to string, t time.Time) float64 {
 	if xf, ok := map[string]func() float64{
 		"RUB" + "RUB": func() float64 { return 1 },
-		"RUB" + "USD": func() float64 { return 1 / cc.GetOnDay(schema.FigiUSD, t) },
+		"RUB" + "USD": func() float64 { return 1 / cc.Get(schema.FigiUSD, t) },
 		"USD" + "USD": func() float64 { return 1 },
-		"USD" + "RUB": func() float64 { return cc.GetOnDay(schema.FigiUSD, t) },
+		"USD" + "RUB": func() float64 { return cc.Get(schema.FigiUSD, t) },
 	}[curr_from+curr_to]; ok {
 		return xf()
 	}

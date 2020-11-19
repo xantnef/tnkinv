@@ -171,7 +171,9 @@ func (p *Portfolio) openDealsBalance(time time.Time) *schema.Balance {
 }
 
 func (p *Portfolio) Collect(at time.Time) {
-	p.collectAccrued()
+	if p.config.fictFile == "" {
+		p.collectAccrued()
+	}
 
 	p.cc = candles.NewCandleCache(p.client)
 

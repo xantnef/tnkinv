@@ -2,7 +2,9 @@ package portfolio
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
+	"math"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -34,8 +36,15 @@ func readFictives(fname string) (ops []FictiveDeal) {
 }
 
 func fetchFictives(c *client.MyClient, cc *candles.CandleCache, fname string) (ops []schema.Operation) {
+	var totalAmount float64
 
-	for _, op := range readFictives(fname) {
+	fs := readFictives(fname)
+
+	for _, op := range fs {
+		totalAmount += op.Amount
+	}
+
+	for _, op := range fs {
 		date, err := time.Parse("2006/01/02", op.Date)
 		if err != nil {
 			log.Errorf("bad date %s: %s", op.Ticker, op.Date)
@@ -54,8 +63,17 @@ func fetchFictives(c *client.MyClient, cc *candles.CandleCache, fname string) (o
 		}
 
 		price := cc.Get(ins.Figi, date)
+		n := uint(math.Round(op.Amount/(price*float64(ins.Lot)))) * uint(ins.Lot)
+		pment := price * float64(n)
 
-		n := uint(op.Amount / price)
+		s := fmt.Sprintf("%-5s spent %8.2f/%8.2f - %5.1f%% (%5.1f%% -> %5.1f%%)",
+			ins.Ticker, pment, op.Amount, 100*pment/op.Amount,
+			100*op.Amount/totalAmount, 100*pment/totalAmount)
+		if n == 0 {
+			s += " " + fmt.Sprintf("(min %8.2f)", float64(ins.Lot)*price)
+		}
+		log.Info(s)
+
 		ops = append(ops,
 			schema.Operation{
 				Date:           date.Format(time.RFC3339),
@@ -65,7 +83,7 @@ func fetchFictives(c *client.MyClient, cc *candles.CandleCache, fname string) (o
 				Price:     price,
 				Currency:  op.Currency,
 				Quantity_: n,
-				Payment:   -price * float64(n),
+				Payment:   -pment,
 
 				OperationType: "Buy",
 				Status:        "Done",
@@ -80,7 +98,7 @@ func fetchFictives(c *client.MyClient, cc *candles.CandleCache, fname string) (o
 			},
 			schema.Operation{
 				Date:     date.Format(time.RFC3339),
-				Payment:  price * float64(n),
+				Payment:  pment,
 				Currency: op.Currency,
 
 				OperationType: "PayIn",
@@ -88,5 +106,6 @@ func fetchFictives(c *client.MyClient, cc *candles.CandleCache, fname string) (o
 			},
 		)
 	}
+
 	return
 }

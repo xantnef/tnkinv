@@ -114,7 +114,8 @@ func (c *MyClient) RequestByFigi(figi string) schema.Instrument {
 		resp.Payload.Name,
 		resp.Payload.Type,
 		resp.Payload.Currency,
-		int(resp.Payload.FaceValue))
+		int(resp.Payload.FaceValue),
+		resp.Payload.Lot)
 }
 
 func (c *MyClient) TryRequestByTicker(ticker string) (schema.Instrument, error) {
@@ -145,7 +146,7 @@ func (c *MyClient) TryRequestByTicker(ticker string) (schema.Instrument, error) 
 		i.Name,
 		i.Type,
 		i.Currency,
-		int(i.FaceValue)), nil
+		int(i.FaceValue), i.Lot), nil
 }
 
 func (c *MyClient) RequestByTicker(ticker string) schema.Instrument {

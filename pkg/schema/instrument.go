@@ -28,18 +28,20 @@ const (
 	CashUsd          = "Cash.USD"
 )
 
+// TODO why json tags?
 type Instrument struct {
 	Figi      string `json:"figi"`
 	Ticker    string `json:"ticker"`
 	Name      string `json:"name"`
 	Currency  string `json:"currency"`
-	FaceValue int    `json:"faceValue"`
+	Lot       int
+	FaceValue int `json:"faceValue"`
 
 	Type    InsType
 	Section Section
 }
 
-func NewInstrument(figi, ticker, name, typ, currency string, faceValue int) Instrument {
+func NewInstrument(figi, ticker, name, typ, currency string, faceValue, lot int) Instrument {
 	if !Currencies.Has(currency) {
 		log.Fatal("unknown currency %s (%s)", currency, ticker)
 	}
@@ -50,6 +52,7 @@ func NewInstrument(figi, ticker, name, typ, currency string, faceValue int) Inst
 		Name:      name,
 		Currency:  currency,
 		FaceValue: faceValue,
+		Lot:       lot,
 	}
 	ins.Type = GetInstrumentType(typ, ticker)
 	ins.Section = GetSection(ins)

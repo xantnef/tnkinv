@@ -212,9 +212,12 @@ func (c *MyClient) RequestCandles(figi string, t1, t2 time.Time, interval string
 	mktApi := c.getAPI().MarketApi
 	mktResp := schema.CandlesResponse{}
 
+again:
 	body, err := mktApi.MarketCandlesGet(nil, figi, t1Str, t2Str, interval)
 	if err != nil {
-		log.Fatalf("candles(%s, %s : %s : %s): %s", figi, t1, interval, t2, err)
+		log.Warnf("candles(%s, %s : %s : %s): %s", figi, t1, interval, t2, err)
+		time.Sleep(30 * time.Second)
+		goto again
 	}
 
 	err = json.Unmarshal(body, &mktResp)

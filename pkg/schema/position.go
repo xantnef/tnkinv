@@ -6,8 +6,6 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
-
-	"../aux"
 )
 
 type Dividend struct {
@@ -29,10 +27,9 @@ type PositionInfo struct {
 	Repayments []*RepaymentPoint
 
 	OpenQuantity int
-	OpenSpent    float64
+	OpenDeal     Deal
 
-	OpenDeal Deal
-
+	// TODO commissions are counted here but not included in portion balances and yields
 	AccumulatedIncome CValue
 }
 
@@ -86,67 +83,43 @@ func (pinfo *PositionInfo) addDeal(deal Deal) {
 	if po == nil {
 		po = &Portion{
 			Balance: NewCValue(0, deal.Price.Currency),
-			AvgDate: deal.Date,
 		}
 		pinfo.Portions = append(pinfo.Portions, po)
 	}
 
 	pinfo.OpenQuantity += deal.Quantity
-	pinfo.OpenSpent += deal.Value()
 
-	if deal.Quantity > 0 { // buy
-		po.CheckNoSplitSells(pinfo.Ins.Ticker)
+	if pinfo.OpenQuantity < 0 {
+		log.Fatalf("negative balance? %v", pinfo)
+	}
 
-		po.AvgDate = aux.AdjustDate(po.AvgDate, deal.Date, pinfo.OpenSpent, deal.Value())
+	if len(po.Buys) > 0 {
+		last := po.Buys[len(po.Buys)-1]
 
-		//po.AvgPrice.Value = deal.Price.Value*mult + po.AvgPrice.Value*(1-mult)
+		if deal.Date.Before(last.Date.Add(12 * time.Hour)) {
+			po.Buys = po.Buys[:len(po.Buys)-1]
+
+			// merge deals
+			sval := deal.Value() + last.Value()
+			deal.Quantity += last.Quantity
+			deal.Accrued += last.Accrued
+			deal.Commission += last.Commission
+
+			deal.Price.Value = (sval - deal.Accrued) / float64(deal.Quantity)
+		}
+	}
+
+	if pinfo.OpenQuantity > 0 {
 		po.Buys = append(po.Buys, deal)
-
-	} else { // sell
-
-		if pinfo.OpenQuantity < 0 {
-			log.Fatalf("negative balance? %v", pinfo)
-		}
-
-		if pinfo.OpenQuantity > 0 {
-			// How to better handle it?
-			// 1. split sells. try and merge. those wont split between days,
-			//    so wont cross portion period boundaries
-			//
-			// 2. true partial sells. options?
-			//    2.1 sell all, buy some back
-			//    2.2 ?
-			//
-			po.SplitSells = append(po.SplitSells, deal)
-
-		} else {
-			if len(po.SplitSells) > 0 {
-				// new "superdeal"
-				sdeal := deal
-				sval := sdeal.Value()
-
-				for _, psell := range po.SplitSells {
-					sdeal.Quantity += psell.Quantity
-					sdeal.Accrued += psell.Accrued
-					sdeal.Commission += psell.Commission
-					sval += psell.Value()
-				}
-
-				sdeal.Price.Value = (sval - sdeal.Accrued) / float64(sdeal.Quantity)
-				deal = sdeal
-			}
-
-			pinfo.OpenSpent = 0
-
-			// complete sell
-			po.Close = deal
-			po.IsClosed = true
-		}
+	} else {
+		// complete sell
+		po.Close = deal
+		po.IsClosed = true
 	}
 }
 
 func (pinfo *PositionInfo) AddOperation(op Operation) (Deal, bool) {
-	log.Debugf("%s", op)
+	log.Debugf("%v", op)
 
 	if op.Status != "Done" {
 		return Deal{}, false
@@ -197,8 +170,6 @@ func (pinfo *PositionInfo) MakeOpenDeal(date time.Time, pricef func() float64) (
 	if po == nil {
 		return deal, false
 	}
-
-	po.CheckNoSplitSells(pinfo.Ins.Ticker)
 
 	deal = Deal{
 		Date:     date,

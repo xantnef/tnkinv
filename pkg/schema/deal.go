@@ -8,9 +8,23 @@ import (
 type Deal struct {
 	Date       time.Time
 	Price      CValue
-	Quantity   int
+	Quantity   int     // positive for Buy
 	Accrued    float64 // aka NKD
-	Commission float64
+	Commission float64 // negative
+}
+
+func (deal Deal) IsBuy() bool {
+	return deal.Quantity > 0
+}
+
+// positive for Buy
+func (deal Deal) Expense() float64 {
+	return deal.Value() - deal.Commission
+}
+
+// positive for Sell
+func (deal Deal) Profit() float64 {
+	return -deal.Expense()
 }
 
 func (deal Deal) String() string {

@@ -27,9 +27,9 @@ func (p *Portfolio) makePortionYields(pinfo *schema.PositionInfo) schema.CValue 
 	alpha := schema.NewCValue(0, pinfo.Ins.Currency)
 
 	for _, po := range pinfo.Portions {
-		var expense float64
-
+		var xirr aux.XirrCtx
 		value := -po.Close.Value()
+		expense := -po.Close.Commission
 
 		for _, div := range pinfo.Dividends {
 			if div.Date.Before(po.Buys[0].Date) {
@@ -40,18 +40,23 @@ func (p *Portfolio) makePortionYields(pinfo *schema.PositionInfo) schema.CValue 
 				continue
 			}
 			value += div.Value
+			xirr.AddPayment(-div.Value, div.Date)
 		}
 
 		for _, deal := range po.Buys {
-			expense += deal.Value()
-			expense += -deal.Commission
+			if deal.IsBuy() {
+				expense += deal.Expense()
+			} else {
+				value += deal.Profit()
+			}
+
+			xirr.AddPayment(deal.Expense(), deal.Date)
 		}
-		expense += -po.Close.Commission
 
 		// there are fictive deals with 0 quantity
 		if expense != 0 {
 			po.Yield = aux.Ratio2Perc(value / expense)
-			po.YieldAnnual = aux.Ratio2Perc(aux.RatioAnnual(value/expense, po.Close.Date.Sub(po.AvgDate)))
+			po.YieldAnnual = xirr.Ratio(po.Close.Profit(), po.Close.Date) * 100
 			// compare with the market ETF
 			po.YieldMarket = p.getMarketYield(pinfo.Ins, po, expense)
 		}

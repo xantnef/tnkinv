@@ -61,7 +61,8 @@ func (m CurMap) String() string {
 
 type Balance struct {
 	Commissions, Payins, Assets CurMap
-	AvgDate                     time.Time
+
+	xirr aux.XirrCtx
 }
 
 func NewBalance() *Balance {
@@ -87,6 +88,7 @@ func (b Balance) Foreach(f func(string, CurMap)) {
 
 func (b Balance) Copy() *Balance {
 	copy := NewBalance()
+	copy.xirr = b.xirr
 
 	for _, cur := range balanceMaps() {
 		copy.Payins[cur] = b.Payins[cur].Copy()
@@ -112,7 +114,7 @@ func (b *Balance) Add(b2 Balance) {
 			log.Fatal("Cannot merge payins")
 		}
 	} else {
-		b.AvgDate = b2.AvgDate
+		b.xirr = b2.xirr
 	}
 
 	for _, cur := range balanceMaps() {
@@ -178,11 +180,7 @@ func (bal *Balance) AddOperation(op Operation, xchgrate func(curr_from, curr_to 
 
 		// add total payin
 		payin := op.Payment * xchgrate(op.Currency, "RUB", op.DateParsed)
-		if bal.Payins["all"].Value == 0 {
-			bal.AvgDate = op.DateParsed
-		} else {
-			bal.AvgDate = aux.AdjustDate(bal.AvgDate, op.DateParsed, bal.Payins["all"].Value, payin)
-		}
+		bal.xirr.AddPayment(payin, op.DateParsed)
 		bal.Payins["all"].Value += payin
 
 	} else if op.OperationType == "ServiceCommission" {
@@ -280,22 +278,20 @@ func (b SectionedBalance) Print(t time.Time, prefix, style string) {
 		if prefix != "" {
 			s = prefix + ", "
 		}
-		s += fmt.Sprintf("%.0f, %.0f, %.0f, %.1f, %.1f, %.1f, %.1f, %s",
+		s += fmt.Sprintf("%.0f, %.0f, %.0f, %.1f, %.1f, %.1f, %.1f",
 			p, a, d,
 			b.sectionShare(BondRub),
 			b.sectionShare(BondUsd),
 			b.sectionShare(StockRub),
-			b.sectionShare(StockUsd),
-			b.Total.AvgDate.Format("2006/01/02"))
+			b.sectionShare(StockUsd))
 	} else {
 		if prefix != "" {
 			s = prefix + ": "
 		}
-		s += fmt.Sprintf("%7.0f -> %7.0f : %6.0f (%.1f%%, annual %.1f%%, pd %s) "+
+		s += fmt.Sprintf("%7.0f -> %7.0f : %6.0f (%.1f%%, annual %.1f%%) "+
 			"bonds(R+U) %.1f+%.1f%% stocks %.1f+%.1f%%",
 			p, a, d,
-			aux.Ratio2Perc(a/p), aux.Ratio2Perc(aux.RatioAnnual(a/p, t.Sub(b.Total.AvgDate))),
-			b.Total.AvgDate.Format("2006/01/02"),
+			aux.Ratio2Perc(a/p), b.Total.xirr.Ratio(a, t)*100,
 			b.sectionShare(BondRub),
 			b.sectionShare(BondUsd),
 			b.sectionShare(StockRub),

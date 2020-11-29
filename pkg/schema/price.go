@@ -4,11 +4,12 @@ import (
 	"time"
 )
 
-type Pricef0 func() float64
-type Pricef1 func(figi string) float64
-type Pricef2 func(figi string, t time.Time) float64
+type PriceF func() float64
+type PriceFigi func(figi string) float64
+type PriceFigiAt func(figi string, t time.Time) float64
+type PriceAt func(time.Time) float64
 
-func PriceCurry0(f1 Pricef1, figi string) Pricef0 {
+func PriceCurry0(f1 PriceFigi, figi string) PriceF {
 	return func() float64 {
 		return f1(figi)
 	}

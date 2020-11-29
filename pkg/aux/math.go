@@ -15,6 +15,8 @@ func RatioAnnual(ratio float64, delta time.Duration) float64 {
 	return math.Pow(ratio, 365/(delta.Hours()/24))
 }
 
+// =============================================================================
+
 type payment struct {
 	val  float64 // positive for investments
 	date time.Time

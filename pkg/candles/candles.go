@@ -190,7 +190,7 @@ func (cc *CandleCache) Get(figi string, t time.Time) float64 {
 	return cc.cache.find(figi, t)
 }
 
-func (cc *CandleCache) Pricef1(t time.Time) schema.Pricef1 {
+func (cc *CandleCache) PriceFigi(t time.Time) schema.PriceFigi {
 	return func(figi string) float64 {
 		return cc.Get(figi, t)
 	}

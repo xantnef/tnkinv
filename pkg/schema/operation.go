@@ -14,7 +14,7 @@ func (op Operation) StringPretty() string {
 
 	return fmt.Sprintf(
 		"%s: %-17s %-4s (%-7.2f x %-3d) = %s %-9.2f",
-		op.DateParsed.Format("2006/01/02"), op.OperationType, shortTick, op.Price, op.Quantity,
+		op.DateParsed.Format("2006/01/02"), op.OperationType, shortTick, op.Price, op.Quantity(),
 		op.Currency, op.Payment)
 }
 

@@ -166,7 +166,7 @@ func (p *Portfolio) openDealsSectionedBalance(time time.Time) schema.SectionedBa
 
 func (p *Portfolio) openDealsBalance(time time.Time) *schema.Balance {
 	sb := p.openDealsSectionedBalance(time)
-	log.Debugf("current asset balance: %s", sb.Total)
+	log.Debugf("current asset balance: %v", sb.Total)
 	return sb.Total
 }
 

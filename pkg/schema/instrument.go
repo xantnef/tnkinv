@@ -43,7 +43,7 @@ type Instrument struct {
 
 func NewInstrument(figi, ticker, name, typ, currency string, faceValue, lot int) Instrument {
 	if !Currencies.Has(currency) {
-		log.Fatal("unknown currency %s (%s)", currency, ticker)
+		log.Fatalf("unknown currency %s (%s)", currency, ticker)
 	}
 
 	ins := Instrument{

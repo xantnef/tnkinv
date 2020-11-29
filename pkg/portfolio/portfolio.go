@@ -185,8 +185,8 @@ func (p *Portfolio) Collect(at time.Time) {
 	p.balance.Total.Add(*cash)
 
 	for _, pinfo := range p.positions {
-		alpha := p.makePortionYields(pinfo)
-		p.alphas.Add(alpha)
+		pinfo.Finalize(p.benchPricef(pinfo.Ins))
+		p.alphas.Add(pinfo.Alpha())
 	}
 
 	p.calcAllAssets(p.balance, p.alphas, at)

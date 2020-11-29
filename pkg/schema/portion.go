@@ -16,7 +16,24 @@ type Portion struct {
 	YieldMarket float64
 }
 
-//func (po Portion) AnnualYield()
+func (po *Portion) finalize(deal Deal, isClosed bool) {
+	po.Close = deal
+	po.IsClosed = isClosed
+}
+
+func (po Portion) benchValue(benchPricef PriceAt) float64 {
+	var quantity float64
+
+	if benchPricef == nil {
+		return 0
+	}
+
+	for _, deal := range po.Buys {
+		quantity += deal.Value() / benchPricef(deal.Date)
+	}
+
+	return quantity * benchPricef(po.Close.Date)
+}
 
 func (po Portion) Alpha() CValue {
 	if po.YieldMarket == 0 {

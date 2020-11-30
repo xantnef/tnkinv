@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io/ioutil"
+	"strings"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -215,9 +216,12 @@ func (c *MyClient) RequestCandles(figi string, t1, t2 time.Time, interval string
 again:
 	body, err := mktApi.MarketCandlesGet(nil, figi, t1Str, t2Str, interval)
 	if err != nil {
-		log.Warnf("candles(%s, %s : %s : %s): %s", figi, t1, interval, t2, err)
-		time.Sleep(30 * time.Second)
-		goto again
+		if strings.HasPrefix(err.Error(), "429 ") {
+			log.Infof("429. calming down")
+			time.Sleep(30 * time.Second)
+			goto again
+		}
+		log.Fatalf("candles(%s, %s : %s : %s): %s", figi, t1, interval, t2, err)
 	}
 
 	err = json.Unmarshal(body, &mktResp)

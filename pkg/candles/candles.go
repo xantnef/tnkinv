@@ -61,7 +61,12 @@ func normalize(t time.Time) time.Time {
 func (cc *CandleCache) fetchDay(figi string, t time.Time) (clist []candle) {
 	defer print(figi, clist)
 
-	clist = cc.fetchDaily(figi, t, t.Add(24*time.Hour))
+	for t1, t2 := t, t.Add(24*time.Hour); ; t1.Add(-24 * time.Hour) {
+		clist = cc.fetchDaily(figi, t1, t2)
+		if len(clist) > 0 {
+			break
+		}
+	}
 
 	// idx = first element after or equal to day @t
 	idx := sort.Search(len(clist), func(i int) bool {
@@ -94,10 +99,9 @@ func (cc *CandleCache) fetchDaily(figi string, t1, t2 time.Time) (clist []candle
 	t1 = normalize(t1)
 
 	pcandles := cc.client.RequestCandles(figi, t1, t2, "day").Payload.Candles
-
 	if len(pcandles) < 1 {
-		log.Debugf("No candles for period %s- %s", t1, t2)
-		return cc.fetchDaily(figi, t1.Add(-24*time.Hour), t2)
+		log.Debugf("No candles for period %s - %s", t1, t2)
+		return
 	}
 
 	for _, p := range pcandles {

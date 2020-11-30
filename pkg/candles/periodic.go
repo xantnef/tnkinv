@@ -32,20 +32,16 @@ func strToDuration(s string) time.Duration {
 	}
 }
 
-func (cc *CandleCache) doFetchPeriod(figi string) (clist []candle) {
-	defer print(figi, clist)
-
+func (cc *CandleCache) doFetchPeriod(figi string, t1, t2 time.Time) (clist []candle) {
 	if cc.period == "day" {
-		return cc.fetchDaily(figi, cc.start, time.Now())
+		return cc.fetchDaily(figi, t1, t2)
 	}
-
-	t1 := cc.start.Add(-strToDuration(cc.period))
-	t2 := time.Now()
 
 	pcandles := cc.client.RequestCandles(figi, t1, t2, cc.period).Payload.Candles
 
 	if len(pcandles) < 1 {
-		log.Fatalf("No candles for period %s - %s (%s)", t1, t2, cc.start)
+		log.Infof("No candles for period %s - %s (%s)", t1, t2, cc.start)
+		return
 	}
 
 	for _, p := range pcandles {
@@ -77,7 +73,20 @@ func (cc *CandleCache) fetchPeriod(figi string) {
 		return
 	}
 
-	pcandles := cc.doFetchPeriod(figi)
+	pcandles := []candle{}
+	for now, t1 := time.Now(), cc.start.Add(-strToDuration(cc.period)); ; {
+		t2 := t1.Add(50 * strToDuration(cc.period))
+		if t2.After(now) {
+			pcandles = append(pcandles, cc.doFetchPeriod(figi, t1, now)...)
+			break
+		} else {
+			pcandles = append(pcandles, cc.doFetchPeriod(figi, t1, t2)...)
+			t1 = t2
+		}
+	}
+
+	print(figi, pcandles)
+
 	cc.pcache[figi] = sortCandles(append(cc.pcache[figi], pcandles...))
 }
 

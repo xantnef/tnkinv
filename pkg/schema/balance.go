@@ -288,8 +288,8 @@ func (b SectionedBalance) Print(t time.Time, prefix, style string) {
 		if prefix != "" {
 			s = prefix + ": "
 		}
-		s += fmt.Sprintf("%7.0f -> %7.0f : %6.0f (%.1f%%, annual %.1f%%) "+
-			"bonds(R+U) %.1f+%.1f%% stocks %.1f+%.1f%%",
+		s += fmt.Sprintf("%7.0f -> %7.0f : %6.0f (%5.1f%%, annual %5.1f%%) "+
+			"bonds(R+U): %5.1f + %5.1f%%; stocks: %5.1f+%5.1f%%",
 			p, a, d,
 			aux.Ratio2Perc(a/p), b.Total.xirr.Ratio(a, t)*100,
 			b.sectionShare(BondRub),

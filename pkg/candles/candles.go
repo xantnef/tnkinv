@@ -61,7 +61,7 @@ func normalize(t time.Time) time.Time {
 func (cc *CandleCache) fetchDay(figi string, t time.Time) (clist []candle) {
 	defer print(figi, clist)
 
-	for t1, t2 := t, t.Add(24*time.Hour); ; t1.Add(-24 * time.Hour) {
+	for t1, t2 := t, t.Add(24*time.Hour); ; t1 = t1.Add(-24 * time.Hour) {
 		clist = cc.fetchDaily(figi, t1, t2)
 		if len(clist) > 0 {
 			break

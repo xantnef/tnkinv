@@ -137,6 +137,7 @@ func GetEtfSection(ticker string) (Section, bool) {
 		"TSPX": StockUsd,
 		"TIPO": StockUsd,
 		"TBIO": StockUsd,
+		"VTBE": StockUsd,
 
 		"FXMM": CashRub,
 		"FXTB": CashUsd,

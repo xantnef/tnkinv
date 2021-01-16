@@ -51,6 +51,14 @@ func (p *Portfolio) getOperations(start time.Time) (ops []schema.Operation) {
 		if err != nil {
 			log.Fatalf("Failed to parse time: %v", err)
 		}
+
+		/* hashtag #repayment_hacks
+		   Repayments come with delay, and if there were trading ops in the middle,
+		   their value calculation breaks.
+		   Uglyhack it here as I dont know what to do yet */
+		if ops[i].Figi == "BBG00LFKPBJ0" && ops[i].OperationType == "PartRepayment" {
+			ops[i].DateParsed = ops[i].DateParsed.Add(-24 * time.Hour)
+		}
 	}
 
 	sort.Slice(ops, func(i, j int) bool {

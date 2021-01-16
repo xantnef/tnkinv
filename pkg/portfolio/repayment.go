@@ -6,6 +6,10 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+/* this file is a jail for #repayment_hacks, however some wont even fit here,
+   so introduce a hashtag lol.
+   The general problem is that tnk API provides to little info about bonds */
+
 func (p *Portfolio) addStaticRepayments() {
 	if pinfo, ok := p.positions["BBG00GW0RM55"]; ok {
 		dates := []string{"2019/12/10", "2020/03/10"}

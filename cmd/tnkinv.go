@@ -73,7 +73,7 @@ func parseCmdline() (string, config) {
 	acc := fs.String("account", "broker", "account")
 	loglevel := fs.String("loglevel", "none", "log level")
 
-	period := fs.String("period", "month", "story period")
+	period := fs.String("period", "", "story period")
 	start := fs.String("start", "", "starting point in time (format: 1922/12/28; default: year ago)")
 	end := fs.String("end", "", "end point in time (format: 1922/12/28; default: now)")
 	atTime := fs.String("at", "", "point in time (default: now). Not supported yet")
@@ -85,7 +85,6 @@ func parseCmdline() (string, config) {
 	cfg.token = *token
 	cfg.sideOps = *sideOps
 	cfg.fictOps = *fictOps
-	cfg.period = *period
 	if *tickers != "" {
 		cfg.tickers = strings.Split(*tickers, ",")
 	}
@@ -128,6 +127,21 @@ func parseCmdline() (string, config) {
 		log.Fatalf("bad account type %s", *acc)
 	}
 	cfg.acc = *acc
+
+	// --------------
+	// Verify period
+
+	pers := aux.NewList(
+		"",
+		"day",
+		"week",
+		"month",
+		"all",
+	)
+	if !pers.Has(*period) {
+		log.Fatalf("bad period %s", *period)
+	}
+	cfg.period = *period
 
 	// ----------------------
 	// Parse and verify times
@@ -192,7 +206,7 @@ func main() {
 	}
 
 	if cmd == "price" {
-		portfolio.GetPrices(c, cfg.tickers, cfg.start, cfg.end)
+		portfolio.GetPrices(c, cfg.tickers, cfg.start, cfg.end, cfg.period, cfg.format)
 		return
 	}
 
@@ -212,6 +226,10 @@ func main() {
 
 		since := time.Now()
 
+		if cfg.period == "" {
+			cfg.period = "month"
+		}
+
 		if cfg.period == "day" {
 			since = since.AddDate(0, 0, -1)
 		}
@@ -230,6 +248,10 @@ func main() {
 	}
 
 	if cmd == "story" {
+		if cfg.period == "" {
+			cfg.period = "month"
+		}
+
 		port.ListBalances(cfg.start, cfg.period, cfg.format)
 		return
 	}

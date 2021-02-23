@@ -54,12 +54,12 @@ func NewInstrument(figi, ticker, name, typ, currency string, faceValue, lot int)
 		FaceValue: faceValue,
 		Lot:       lot,
 	}
-	ins.Type = GetInstrumentType(typ, ticker)
-	ins.Section = GetSection(ins)
+	ins.Type = getInstrumentType(typ, ticker)
+	ins.Section = getSection(ins)
 	return ins
 }
 
-func GetInstrumentType(typ string, ticker string) InsType {
+func getInstrumentType(typ string, ticker string) InsType {
 	if !map[InsType]bool{
 		InsTypeEtf:      true,
 		InsTypeStock:    true,
@@ -102,7 +102,7 @@ func (ins Instrument) Benchmark() string {
 	return ""
 }
 
-func GetSectionCurrency(s Section) string {
+func (s Section) Currency() string {
 	for cur := range Currencies {
 		if strings.Contains(string(s), cur) {
 			return cur
@@ -145,7 +145,7 @@ func GetEtfSection(ticker string) (Section, bool) {
 	return s, ok
 }
 
-func GetSection(ins Instrument) Section {
+func getSection(ins Instrument) Section {
 	if s, ok := map[string]Section{
 		InsTypeBond + "RUB": BondRub,
 		InsTypeBond + "USD": BondUsd,

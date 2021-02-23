@@ -34,7 +34,7 @@ func printTotal(cc *candles.CandleCache, ins schema.Instrument, start, end price
 			aux.Ratio2Perc(aux.RatioAnnual(end.price/start.price, end.time.Sub(start.time))))
 
 	} else if section, ok := schema.GetEtfSection(ins.Ticker); ok {
-		if curr := schema.GetSectionCurrency(section); curr != ins.Currency {
+		if curr := section.Currency(); curr != ins.Currency {
 			start.price = cc.GetInCurrency(ins, curr, start.time)
 			end.price = cc.GetInCurrency(ins, curr, end.time)
 			s += fmt.Sprintf(" (%.1f%% USD; %.1f%% annual)",

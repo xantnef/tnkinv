@@ -231,6 +231,10 @@ func (pinfo *PositionInfo) Finalize(benchPricef PriceAt) {
 func (pinfo PositionInfo) Alpha() CValue {
 	alpha := NewCValue(0, pinfo.Ins.Currency)
 
+	if pinfo.Ins.Type == InsTypeEtf {
+		return alpha
+	}
+
 	for _, po := range pinfo.Portions {
 		alpha.Value += po.Alpha().Value
 	}

@@ -72,13 +72,12 @@ func getInstrumentType(typ string, ticker string) InsType {
 }
 
 func (ins Instrument) Benchmark() string {
-	if bench, ok := map[string]string{
-		InsTypeBond + "RUB":  "VTBB",
-		InsTypeBond + "USD":  "FXRU",
-		InsTypeStock + "RUB": "FXRL",
-		InsTypeStock + "USD": "FXUS", // see below
-	}[string(ins.Type)+ins.Currency]; ok {
-
+	if bench, ok := map[Section]string{
+		BondRub:  "VTBB",
+		BondUsd:  "FXRU",
+		StockRub: "FXRL",
+		StockUsd: "FXUS", // see below
+	}[ins.Section]; ok {
 		if bench == "FXUS" && aux.IsIn(ins.Ticker,
 			"AAPL", // 18.1%
 			"MSFT", // 16.3%
@@ -92,11 +91,9 @@ func (ins Instrument) Benchmark() string {
 		) {
 			return "FXIT"
 		}
-		return bench
-	}
-
-	if ins.Type == InsTypeEtf {
-		// ETF is benchmark itself
+		if bench != ins.Ticker {
+			return bench
+		}
 	}
 
 	return ""

@@ -198,6 +198,8 @@ func (bal *Balance) AddOperation(op Operation, xchgrate func(curr_from, curr_to 
 	} else {
 		log.Warnf("Unprocessed transaction 2 %v", op)
 	}
+
+	log.Debugf("Added %s to %s", op.Figi, bal.Assets)
 }
 
 func (bal *Balance) AddDeal(deal Deal, figi string) {

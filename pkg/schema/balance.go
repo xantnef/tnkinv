@@ -267,7 +267,7 @@ const (
 
 func PrintBalanceHead(style string) {
 	if style == TableStyle {
-		fmt.Println("payins, assets, delta, bonds.rub, bonds.usd, stocks.rub, stocks.usd, pivotdate")
+		fmt.Println("payins, assets, delta, bonds.rub, bonds.usd, stocks.ru, stocks.em, stocks.us, stocks.dm, pivotdate")
 	}
 }
 
@@ -280,24 +280,28 @@ func (b SectionedBalance) Print(t time.Time, prefix, style string) {
 		if prefix != "" {
 			s = prefix + ", "
 		}
-		s += fmt.Sprintf("%.0f, %.0f, %.0f, %.1f, %.1f, %.1f, %.1f",
+		s += fmt.Sprintf("%.0f, %.0f, %.0f, %.1f, %.1f, %.1f, %.1f, %.1f, %.1f",
 			p, a, d,
-			b.sectionShare(BondRub),
-			b.sectionShare(BondUsd),
-			b.sectionShare(StockRub),
-			b.sectionShare(StockUsd))
+			b.sectionShare(BondRu),
+			b.sectionShare(BondUs),
+			b.sectionShare(StockRu),
+			b.sectionShare(StockEm),
+			b.sectionShare(StockUs),
+			b.sectionShare(StockDm))
 	} else {
 		if prefix != "" {
 			s = prefix + ": "
 		}
 		s += fmt.Sprintf("%7.0f -> %7.0f : %6.0f (%5.1f%%, annual %5.1f%%) "+
-			"bonds(R+U): %5.1f + %5.1f%%; stocks: %5.1f+%5.1f%%",
+			"bonds {%5.1f(RU) +%5.1f(US)}; stocks {%5.1f(RU) +%5.1f(EM) +%5.1f(US) +%5.1f(DM)}",
 			p, a, d,
 			aux.Ratio2Perc(a/p), b.Total.xirr.Ratio(a, t)*100,
-			b.sectionShare(BondRub),
-			b.sectionShare(BondUsd),
-			b.sectionShare(StockRub),
-			b.sectionShare(StockUsd))
+			b.sectionShare(BondRu),
+			b.sectionShare(BondUs),
+			b.sectionShare(StockRu),
+			b.sectionShare(StockEm),
+			b.sectionShare(StockUs),
+			b.sectionShare(StockDm))
 	}
 	fmt.Println(s)
 }

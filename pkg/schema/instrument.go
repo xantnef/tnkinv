@@ -20,12 +20,14 @@ const (
 type Section string
 
 const (
-	BondRub  Section = "Bond.RUB"
-	BondUsd          = "Bond.USD"
-	StockRub         = "Stock.RUB"
-	StockUsd         = "Stock.USD"
-	CashRub          = "Cash.RUB"
-	CashUsd          = "Cash.USD"
+	BondRu  Section = "Bond.RU"
+	BondUs          = "Bond.US"
+	StockRu         = "Stock.RU"
+	StockEm         = "Stock.EM"
+	StockUs         = "Stock.US"
+	StockDm         = "Stock.DM"
+	CashRu          = "Cash.RU"
+	CashUs          = "Cash.US"
 )
 
 // TODO why json tags?
@@ -73,10 +75,13 @@ func getInstrumentType(typ string, ticker string) InsType {
 
 func (ins Instrument) Benchmark() string {
 	if bench, ok := map[Section]string{
-		BondRub:  "VTBB",
-		BondUsd:  "FXRU",
-		StockRub: "FXRL",
-		StockUsd: "FXUS", // see below
+		BondRu:  "VTBB",
+		BondUs:  "FXRU",
+		StockRu: "FXRL",
+		StockEm: "VTBE",
+		// StockDm: "FXDM", // would be nice, but it appeared too recently; cant compare early dates
+		StockDm: "FXUS",
+		StockUs: "FXUS", // see below
 	}[ins.Section]; ok {
 		if bench == "FXUS" && aux.IsIn(ins.Ticker,
 			"AAPL", // 18.1%
@@ -110,48 +115,52 @@ func (s Section) Currency() string {
 
 func GetEtfSection(ticker string) (Section, bool) {
 	s, ok := map[string]Section{
-		"VTBB": BondRub,
-		"FXRB": BondRub,
+		"VTBB": BondRu,
+		"FXRB": BondRu,
 
 		// T* funds are (25x4 gold, stocks, long and short bonds)
 		// TODO proper accounting
 		// consider them bonds for now
-		"TRUR": BondRub,
-		"TUSD": BondUsd,
+		"TRUR": BondRu,
+		"TUSD": BondUs,
 
-		"FXRU": BondUsd,
+		"FXRU": BondUs,
 
-		"SBMX": StockRub,
-		"FXRL": StockRub,
-		"TMOS": StockRub,
+		"SBMX": StockRu,
+		"FXRL": StockRu,
+		"TMOS": StockRu,
 
-		"AKNX": StockUsd,
-		"FXIT": StockUsd,
-		"FXUS": StockUsd,
-		// it's actually StockEur, but leave it for now
-		"FXDE": StockUsd,
-		"TECH": StockUsd,
-		"TSPX": StockUsd,
-		"TIPO": StockUsd,
-		"TBIO": StockUsd,
-		"VTBE": StockUsd,
+		"AKNX": StockUs,
+		"FXIT": StockUs,
+		"FXIM": StockUs,
+		"FXUS": StockUs,
 
-		"FXMM": CashRub,
-		"FXTB": CashUsd,
+		"FXDM": StockDm,
+		"FXDE": StockDm,
+
+		"TECH": StockUs,
+		"TSPX": StockUs,
+		"TIPO": StockUs,
+		"TBIO": StockUs,
+
+		"VTBE": StockEm,
+
+		"FXMM": CashRu,
+		"FXTB": CashUs,
 	}[ticker]
 	return s, ok
 }
 
 func getSection(ins Instrument) Section {
 	if s, ok := map[string]Section{
-		InsTypeBond + "RUB": BondRub,
-		InsTypeBond + "USD": BondUsd,
+		InsTypeBond + "RUB": BondRu,
+		InsTypeBond + "USD": BondUs,
 
-		InsTypeStock + "RUB": StockRub,
-		InsTypeStock + "USD": StockUsd,
+		InsTypeStock + "RUB": StockRu,
+		InsTypeStock + "USD": StockUs,
 
-		InsTypeCurrency + "RUB": CashRub,
-		InsTypeCurrency + "USD": CashUsd,
+		InsTypeCurrency + "RUB": CashRu,
+		InsTypeCurrency + "USD": CashUs,
 	}[string(ins.Type)+ins.Currency]; ok {
 		return s
 	}

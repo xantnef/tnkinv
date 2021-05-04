@@ -125,6 +125,7 @@ func GetEtfSection(ticker string) (Section, bool) {
 		"TUSD": BondUs,
 
 		"FXRU": BondUs,
+		"VTBU": BondUs,
 
 		"SBMX": StockRu,
 		"FXRL": StockRu,

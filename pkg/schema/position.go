@@ -179,6 +179,12 @@ func (pinfo *PositionInfo) MakeOpenDeal(date time.Time, pricef func() float64) (
 		Quantity: -pinfo.OpenQuantity,
 	}
 
+	// yet another #crutch; VTBB was split at some point, and there is no info about it.
+	// TODO: limit by date
+	if aux.IsIn(pinfo.Ins.Ticker, "VTBB", "VTBE") {
+		deal.Quantity *= 10
+	}
+
 	po.finalize(deal, false)
 	pinfo.OpenDeal = deal
 

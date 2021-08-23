@@ -133,6 +133,13 @@ func (pinfo *PositionInfo) AddOperation(op Operation) (Deal, bool) {
 			Commission: op.Commission.Value,
 		}
 
+		// these were split at some point:
+		if aux.IsIn(pinfo.Ins.Ticker, "VTBB", "VTBE") {
+			if deal.Date.Before(time.Date(2021, 4, 12, 0, 0, 0, 0, time.UTC)) {
+				deal.Quantity *= 10
+			}
+		}
+
 		// op.Payment is negative for Buy
 		// deal.Quantity is positive for Buy
 		// deal.Price is always positive
@@ -177,12 +184,6 @@ func (pinfo *PositionInfo) MakeOpenDeal(date time.Time, pricef func() float64) (
 		Date:     date,
 		Price:    NewCValue(pricef(), po.Balance.Currency),
 		Quantity: -pinfo.OpenQuantity,
-	}
-
-	// yet another #crutch; VTBB was split at some point, and there is no info about it.
-	// TODO: limit by date
-	if aux.IsIn(pinfo.Ins.Ticker, "VTBB", "VTBE") {
-		deal.Quantity *= 10
 	}
 
 	po.finalize(deal, false)

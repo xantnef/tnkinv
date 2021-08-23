@@ -117,6 +117,7 @@ func GetEtfSection(ticker string) (Section, bool) {
 	s, ok := map[string]Section{
 		"VTBB": BondRu,
 		"FXRB": BondRu,
+		"TBRU": BondRu,
 
 		// T* funds are (25x4 gold, stocks, long and short bonds)
 		// TODO proper accounting
@@ -145,6 +146,7 @@ func GetEtfSection(ticker string) (Section, bool) {
 		"TBIO": StockUs,
 
 		"VTBE": StockEm,
+		"FXCN": StockEm,
 
 		"FXMM": CashRu,
 		"FXTB": CashUs,

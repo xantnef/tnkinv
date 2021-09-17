@@ -134,10 +134,11 @@ func (pinfo *PositionInfo) AddOperation(op Operation) (Deal, bool) {
 		}
 
 		// these were split at some point:
-		if aux.IsIn(pinfo.Ins.Ticker, "VTBB", "VTBE") {
-			if deal.Date.Before(time.Date(2021, 4, 12, 0, 0, 0, 0, time.UTC)) {
-				deal.Quantity *= 10
-			}
+		if aux.IsIn(pinfo.Ins.Ticker, "VTBB", "VTBE") && deal.Date.Before(time.Date(2021, 4, 12, 0, 0, 0, 0, time.UTC)) {
+			deal.Quantity *= 10
+		}
+		if aux.IsIn(pinfo.Ins.Ticker, "FXDE") && deal.Date.Before(time.Date(2021, 9, 6, 0, 0, 0, 0, time.UTC)) {
+			deal.Quantity *= 100
 		}
 
 		// op.Payment is negative for Buy

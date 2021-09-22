@@ -18,27 +18,28 @@ type price struct {
 type history struct {
 	ins    schema.Instrument
 	prices []price
+	curr   string
 }
 
-func printTotal(cc *candles.CandleCache, ins schema.Instrument, start, end price) {
+func printTotal(cc *candles.CandleCache, ins schema.Instrument, curr string, start, end price) {
 	s := fmt.Sprintf("%s: %.2f -> %.2f (%.1f%% %s; %.1f%% annual)",
-		ins.Ticker, start.price, end.price, aux.Ratio2Perc(end.price/start.price), ins.Currency,
+		ins.Ticker, start.price, end.price, aux.Ratio2Perc(end.price/start.price), curr,
 		aux.Ratio2Perc(aux.RatioAnnual(end.price/start.price, end.time.Sub(start.time))))
 
-	if ins.Currency != "RUB" {
-		start.price = cc.GetInCurrency(ins, "RUB", start.time)
-		end.price = cc.GetInCurrency(ins, "RUB", end.time)
+	if ins.Currency != curr {
+		start.price = cc.GetInCurrency(ins, ins.Currency, start.time)
+		end.price = cc.GetInCurrency(ins, ins.Currency, end.time)
 
-		s += fmt.Sprintf(" (%.1f%% RUB; %.1f%% annual)",
-			aux.Ratio2Perc(end.price/start.price),
+		s += fmt.Sprintf(" (%.1f%% %s; %.1f%% annual)",
+			aux.Ratio2Perc(end.price/start.price), ins.Currency,
 			aux.Ratio2Perc(aux.RatioAnnual(end.price/start.price, end.time.Sub(start.time))))
 
 	} else if section, ok := schema.GetEtfSection(ins.Ticker); ok {
-		if curr := section.Currency(); curr != ins.Currency {
-			start.price = cc.GetInCurrency(ins, curr, start.time)
-			end.price = cc.GetInCurrency(ins, curr, end.time)
-			s += fmt.Sprintf(" (%.1f%% USD; %.1f%% annual)",
-				aux.Ratio2Perc(end.price/start.price),
+		if sectCurr := section.Currency(); sectCurr != curr {
+			start.price = cc.GetInCurrency(ins, sectCurr, start.time)
+			end.price = cc.GetInCurrency(ins, sectCurr, end.time)
+			s += fmt.Sprintf(" (%.1f%% %s; %.1f%% annual)",
+				aux.Ratio2Perc(end.price/start.price), sectCurr,
 				aux.Ratio2Perc(aux.RatioAnnual(end.price/start.price, end.time.Sub(start.time))))
 		}
 	}
@@ -65,7 +66,7 @@ func printHuman(cc *candles.CandleCache, hs []history) {
 	fmt.Println("--")
 
 	for _, h := range hs {
-		printTotal(cc, h.ins, h.prices[0], h.prices[len(h.prices)-1])
+		printTotal(cc, h.ins, h.curr, h.prices[0], h.prices[len(h.prices)-1])
 	}
 }
 
@@ -113,6 +114,7 @@ func GetPrices(c *client.MyClient, tickers []string, start, end time.Time, perio
 
 	for i := range hs {
 		h := &hs[i]
+		h.curr = curr
 		for i, t := range times {
 			h.prices[i] = price{
 				time:  t,

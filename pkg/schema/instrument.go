@@ -105,12 +105,10 @@ func (ins Instrument) Benchmark() string {
 }
 
 func (s Section) Currency() string {
-	for cur := range Currencies {
-		if strings.Contains(string(s), cur) {
-			return cur
-		}
+	if strings.HasSuffix(string(s), ".RU") {
+		return "RUB"
 	}
-	return ""
+	return "USD"
 }
 
 func GetEtfSection(ticker string) (Section, bool) {

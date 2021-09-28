@@ -137,7 +137,7 @@ func (pinfo *PositionInfo) AddOperation(op Operation) (Deal, bool) {
 		if aux.IsIn(pinfo.Ins.Ticker, "VTBB", "VTBE") && deal.Date.Before(time.Date(2021, 4, 12, 0, 0, 0, 0, time.UTC)) {
 			deal.Quantity *= 10
 		}
-		if aux.IsIn(pinfo.Ins.Ticker, "FXDE") && deal.Date.Before(time.Date(2021, 9, 6, 0, 0, 0, 0, time.UTC)) {
+		if aux.IsIn(pinfo.Ins.Ticker, "FXDE") && deal.Date.Before(time.Date(2021, 9, 7, 0, 0, 0, 0, time.UTC)) {
 			deal.Quantity *= 100
 		}
 

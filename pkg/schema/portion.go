@@ -23,6 +23,7 @@ func (po *Portion) finalize(deal Deal, isClosed bool) {
 
 func (po Portion) benchValue(benchPricef PriceAt) float64 {
 	var quantity float64
+	var value float64
 
 	if benchPricef == nil {
 		return 0
@@ -30,9 +31,12 @@ func (po Portion) benchValue(benchPricef PriceAt) float64 {
 
 	for _, deal := range po.Buys {
 		quantity += deal.Value() / benchPricef(deal.Date)
+		if !deal.IsBuy() {
+			value -= deal.Value()
+		}
 	}
 
-	return quantity * benchPricef(po.Close.Date)
+	return value + quantity*benchPricef(po.Close.Date)
 }
 
 func (po Portion) Alpha() CValue {

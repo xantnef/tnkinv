@@ -148,13 +148,17 @@ func (pinfo *PositionInfo) AddOperation(op Operation) (Deal, bool) {
 		pinfo.AccumulatedIncome.Value += op.Payment
 
 	} else if op.IsPayment() {
-		// income - positive, taxes - negative
-		pinfo.AccumulatedIncome.Value += op.Payment
-		pinfo.Dividends = append(pinfo.Dividends,
-			Dividend{
-				Date:  op.DateParsed,
-				Value: op.Payment,
-			})
+		if op.Currency != pinfo.AccumulatedIncome.Currency {
+			// TODO
+		} else {
+			// income - positive, taxes - negative
+			pinfo.AccumulatedIncome.Value += op.Payment
+			pinfo.Dividends = append(pinfo.Dividends,
+				Dividend{
+					Date:  op.DateParsed,
+					Value: op.Payment,
+				})
+		}
 	} else if op.OperationType == "Tax" {
 		// negative
 		pinfo.AccumulatedIncome.Value += op.Payment

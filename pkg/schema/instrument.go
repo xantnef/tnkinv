@@ -82,6 +82,9 @@ func splitCoef(ticker string, date time.Time) int {
 	if aux.IsIn(ticker, "FXDE") && date.Before(time.Date(2021, 9, 7, 0, 0, 0, 0, time.UTC)) {
 		return 100
 	}
+	if aux.IsIn(ticker, "FXUS", "FXRB", "FXRL") && date.Before(time.Date(2021, 10, 6, 0, 0, 0, 0, time.UTC)) {
+		return 100
+	}
 	return 1
 }
 

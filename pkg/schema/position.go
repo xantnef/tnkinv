@@ -129,16 +129,8 @@ func (pinfo *PositionInfo) AddOperation(op Operation) (Deal, bool) {
 		deal := Deal{
 			Date:       op.DateParsed,
 			Price:      NewCValue(op.Price, op.Currency),
-			Quantity:   op.Quantity(),
+			Quantity:   op.Quantity() * splitCoef(pinfo.Ins.Ticker, op.DateParsed),
 			Commission: op.Commission.Value,
-		}
-
-		// these were split at some point:
-		if aux.IsIn(pinfo.Ins.Ticker, "VTBB", "VTBE") && deal.Date.Before(time.Date(2021, 4, 12, 0, 0, 0, 0, time.UTC)) {
-			deal.Quantity *= 10
-		}
-		if aux.IsIn(pinfo.Ins.Ticker, "FXDE") && deal.Date.Before(time.Date(2021, 9, 7, 0, 0, 0, 0, time.UTC)) {
-			deal.Quantity *= 100
 		}
 
 		// op.Payment is negative for Buy

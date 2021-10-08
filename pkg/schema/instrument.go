@@ -1,6 +1,8 @@
 package schema
 
 import (
+	"time"
+
 	log "github.com/sirupsen/logrus"
 
 	"strings"
@@ -71,6 +73,16 @@ func getInstrumentType(typ string, ticker string) InsType {
 		log.Warnf("Unhandled type %s: %s", ticker, typ)
 	}
 	return InsType(typ)
+}
+
+func splitCoef(ticker string, date time.Time) int {
+	if aux.IsIn(ticker, "VTBB", "VTBE") && date.Before(time.Date(2021, 4, 12, 0, 0, 0, 0, time.UTC)) {
+		return 10
+	}
+	if aux.IsIn(ticker, "FXDE") && date.Before(time.Date(2021, 9, 7, 0, 0, 0, 0, time.UTC)) {
+		return 100
+	}
+	return 1
 }
 
 func (ins Instrument) Benchmark() string {

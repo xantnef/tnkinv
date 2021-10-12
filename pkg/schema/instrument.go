@@ -39,13 +39,13 @@ type Instrument struct {
 	Name      string `json:"name"`
 	Currency  string `json:"currency"`
 	Lot       int
-	FaceValue int `json:"faceValue"`
+	FaceValue float64 `json:"faceValue"`
 
 	Type    InsType
 	Section Section
 }
 
-func NewInstrument(figi, ticker, name, typ, currency string, faceValue, lot int) Instrument {
+func NewInstrument(figi, ticker, name, typ, currency string, faceValue float64, lot int) Instrument {
 	if !Currencies.Has(currency) {
 		log.Fatalf("unknown currency %s (%s)", currency, ticker)
 	}
